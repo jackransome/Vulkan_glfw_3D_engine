@@ -19,8 +19,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-
-
 #include <unordered_map>
 
 #include <glm/gtx/hash.hpp>

@@ -1,5 +1,4 @@
 #pragma once
-#include <glm\glm.hpp>
 #include "Graphics.h"
 class SpriteSheet
 {
@@ -17,6 +16,7 @@ public:
 	void init(Graphics* _graphicsPointer, glm::vec2 _texturePosition, int _width, int _height, int _scale, int _numberOfFrames, int _frameChangeInterval);
 	void run();
 	void draw(float _x, float _y);
+	void drawFlipped(float _x, float _y);
 	void setFrame(int _frame);
 	void reset();
 private:

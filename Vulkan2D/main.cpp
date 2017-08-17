@@ -2,23 +2,24 @@
 #include "Input.h" 
 #include "SpriteSheet.h"
 #include <functional>
+#include "Player.h"
 
 Input input;
 Graphics graphics;
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	input.key_callback(key, scancode, action, mods);
 }
 
-static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
 	input.mouse_button_callback(button, action, mods);
 }
 
-static void window_focus_callback(GLFWwindow* window, int focused) {
+void window_focus_callback(GLFWwindow* window, int focused) {
 	input.window_focus_callback(focused);
 }
 
-static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	input.scroll_callback(xoffset, yoffset);
 }
 
@@ -30,13 +31,16 @@ int main() {
 	SpriteSheet testSprite2;
 	testSprite2.init(&graphics, glm::vec2(20, 225), 13, 25, 7, 8, 7);
 
-	glfwSetKeyCallback(graphics.window, key_callback);
-	glfwSetScrollCallback(graphics.window, scroll_callback);
-	glfwSetMouseButtonCallback(graphics.window, mouse_button_callback);
-	glfwSetWindowFocusCallback(graphics.window, window_focus_callback);
+	Player player (0, 0, &input, &graphics);
+
+
 
 	try {
 		graphics.initWindow();
+		glfwSetKeyCallback(graphics.window, key_callback);
+		glfwSetScrollCallback(graphics.window, scroll_callback);
+		glfwSetMouseButtonCallback(graphics.window, mouse_button_callback);
+		glfwSetWindowFocusCallback(graphics.window, window_focus_callback);
 		graphics.drawRect(0, 0, 1000, 1000, 1, 0, 1, 1);
 		graphics.initVulkan();
 		input.init(graphics.window);
@@ -47,7 +51,9 @@ int main() {
 	}
 	while (!glfwWindowShouldClose(graphics.window) && !input.EXIT) {
 		input.run();
-
+		player.handleInput();
+		player.updatePosition();
+		player.draw();
 		testSprite1.run();
 		testSprite1.draw(input.mousePosInWindow.x + 200, input.mousePosInWindow.y + 200);
 		testSprite2.run();

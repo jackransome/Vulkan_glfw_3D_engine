@@ -31,8 +31,12 @@ void SpriteSheet::run()
 void SpriteSheet::draw(float _x, float _y)
 {
 	glm::vec2 pos = glm::vec2(texturePosition.x + frame * width, texturePosition.y);
-	//draw(pos.x, pos.y, to pos.x + width, pos.y + height onto _x, _y to _x + width * scale, _y + height * scale);
 	graphicsPointer->drawFlatImage(_x, _y, width * scale, height * scale, texturePosition + glm::vec2(frame * width, 0), texturePosition + glm::vec2(width, height) + glm::vec2(frame * width, 0));
+}
+void SpriteSheet::drawFlipped(float _x, float _y)
+{
+	glm::vec2 pos = glm::vec2(texturePosition.x + frame * width, texturePosition.y);
+	graphicsPointer->drawFlatImage(_x, _y, width * scale, height * scale, texturePosition + glm::vec2(frame * width, 0) + glm::vec2(width, 0), texturePosition + glm::vec2(0, height) + glm::vec2(frame * width, 0));
 }
 void SpriteSheet::reset()
 {
