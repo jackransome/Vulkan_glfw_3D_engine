@@ -1,6 +1,5 @@
 #pragma once
 #include "BoundingBox.h"
-#include "Graphics.h"
 #include "Input.h"
 #include "SpriteSheet.h"
 enum LastDirection {up, down, left, right};
