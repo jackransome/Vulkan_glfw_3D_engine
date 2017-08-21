@@ -33,8 +33,6 @@ int main() {
 
 	Player player (0, 0, &input, &graphics);
 
-
-
 	try {
 		graphics.initWindow();
 		glfwSetKeyCallback(graphics.window, key_callback);
