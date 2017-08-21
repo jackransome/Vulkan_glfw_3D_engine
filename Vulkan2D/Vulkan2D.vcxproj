@@ -96,20 +96,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-<<<<<<< HEAD
       <AdditionalIncludeDirectories>C:\VulkanSDK\1.0.54.0\Include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\glfw-3.2.1.bin.WIN32\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-=======
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.0.54.0\Include;C:\Users\jack\Documents\GitHub\Vulkan2D\Libraries\glm;C:\Users\jack\Documents\GitHub\Vulkan2D\Libraries\glfw-3.2.1.bin.WIN32\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
->>>>>>> parent of 968738d... Added relative paths for includes & libs
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-<<<<<<< HEAD
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.0.54.0\Lib32;$(SolutionDir)\..\Libraries\glfw-3.2.1.bin.WIN32\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-=======
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.0.54.0\Lib32;C:\Users\jack\Documents\GitHub\Vulkan2D\Libraries\glfw-3.2.1.bin.WIN32\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
->>>>>>> parent of 968738d... Added relative paths for includes & libs
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
