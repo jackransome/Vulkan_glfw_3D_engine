@@ -23,7 +23,7 @@
 
 #include <glm/gtx/hash.hpp>
 
-#include "Vertex.h";
+#include "Vertex.h"
 
 //Uniform buffer struct containing variables to pass to the vertex shader
 struct UniformBufferObject {
