@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+#include <vulkan\vulkan.h>
 #include <array>
 
 struct Vertex {
