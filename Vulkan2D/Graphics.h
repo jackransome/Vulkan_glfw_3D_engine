@@ -43,8 +43,8 @@ namespace std {
 }
 
 //initial width and height of the window
-const int initialWidth = 1920;
-const int initialHeight = 1080;
+const int initialWidth = 2560;
+const int initialHeight = 1600;
 
 //path for the texture
 const std::string TEXTURE_PATH = "textures/texture.png";
@@ -183,7 +183,7 @@ private:
 
 	VkImageView depthImageView;
 
-
+	int windowWidth, windowHeight;
 
 	bool EXIT = false;
 

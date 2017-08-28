@@ -52,12 +52,8 @@ int main() {
 		player.handleInput();
 		player.updatePosition();
 		player.draw();
-		testSprite1.run();
-		testSprite1.draw(input.mousePosInWindow.x + 200, input.mousePosInWindow.y + 200);
-		testSprite2.run();
-		testSprite2.draw(input.mousePosInWindow.x, input.mousePosInWindow.y);
-		graphics.drawRect(0, 0, 1000, 1000, 1, 0, 1, 1);
-		graphics.drawRect(-30, -30, 100, 100, 0, 1, 0, 1);		
+
+		graphics.drawRect(-2560/2, -1600/2, 1000, 1000, 1, 0, 1, 1);
 		
 		graphics.drawFrame();
 		graphics.handleTiming();

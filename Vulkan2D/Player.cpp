@@ -13,6 +13,8 @@ Player::Player(int _x, int _y, Input* _inputPointer, Graphics* _graphicsPointer)
 	standingVerticleUp.init(_graphicsPointer, glm::vec2(124, 275), 13, 25, 6, 1, 5);
 	standingVerticleDown.init(_graphicsPointer, glm::vec2(124, 250), 13, 25, 6, 1, 5);
 	velocity = 8;
+	boundingBox.w = 50;
+	boundingBox.h = 50;
 }
 
 Player::~Player()
@@ -68,44 +70,6 @@ void Player::updatePosition()
 
 void Player::draw()
 {
-
-	if (boundingBox.xv > 0) {
-		walkCycleHorizontal.run();
-		walkCycleHorizontal.draw(boundingBox.x, boundingBox.y);
-	} else 	if (boundingBox.xv < 0) {
-		walkCycleHorizontal.run();
-		walkCycleHorizontal.drawFlipped(boundingBox.x, boundingBox.y);
-	}
-	else {
-		walkCycleHorizontal.setFrame(0);
-		if (boundingBox.yv > 0) {
-			walkCycleVerticleDown.run();
-			walkCycleVerticleDown.draw(boundingBox.x, boundingBox.y);
-			walkCycleHorizontal.setFrame(0);
-			walkCycleVerticleUp.setFrame(0);
-		}
-		else if (boundingBox.yv < 0) {
-			walkCycleHorizontal.setFrame(0);
-			walkCycleVerticleDown.setFrame(0);
-			walkCycleVerticleUp.run();
-			walkCycleVerticleUp.draw(boundingBox.x, boundingBox.y);
-		}
-		else {
-			walkCycleHorizontal.setFrame(0);
-			walkCycleVerticleUp.setFrame(0);
-			walkCycleVerticleDown.setFrame(0);
-			if (lastDirection == right) {
-				standingHorizontal.draw(boundingBox.x, boundingBox.y);
-			}
-			else if (lastDirection == left) {
-				standingHorizontal.drawFlipped(boundingBox.x, boundingBox.y);
-			}
-			else if (lastDirection == up) {
-				standingVerticleUp.draw(boundingBox.x, boundingBox.y);
-			}
-			else if (lastDirection == down) {
-				standingVerticleDown.draw(boundingBox.x, boundingBox.y);
-			}
-		}
-	}
+	graphicsPointer->drawRect(boundingBox.x + 5, boundingBox.y + 5, boundingBox.w - 10, boundingBox.h - 10, 0.9, 0.1, 0.1, 1);
+	graphicsPointer->drawRect(boundingBox.x, boundingBox.y, boundingBox.w, boundingBox.h, 0.0, 0.0, 0.0, 1);
 }

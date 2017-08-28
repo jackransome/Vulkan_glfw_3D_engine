@@ -944,10 +944,10 @@
 	}
 	//function for drawing a rectangle not affected my the matrices involved with 3D graphics, so it can just be srawns are a perfect flat rectangle to the screen
 	void Graphics::drawRect(float x, float y, float width, float height, float r, float g, float b, float a) {
-		x /= swapChainExtent.width;
-		width /= swapChainExtent.width;
-		y /= swapChainExtent.height;
-		height /= swapChainExtent.height;
+		x /= swapChainExtent.width/2;
+		width /= swapChainExtent.width/2;
+		y /= swapChainExtent.height / 2;
+		height /= swapChainExtent.height / 2;
 		Vertex temp = {};
 		temp.normal = glm::vec3(0.111, 0.111, 0.111);
 		temp.texCoord = { 1, 0 };
@@ -970,10 +970,10 @@
 	}
 	//function for drawing a image not affected my the matrices involved with 3D graphics, so it can just be srawns are a perfect flat image to the screen
 	void Graphics::drawFlatImage(float x, float y, float width, float height, glm::vec2 imageMin, glm::vec2 imageMax) {
-		x /= swapChainExtent.width;
-		width /= swapChainExtent.width;
-		y /= swapChainExtent.height;
-		height /= swapChainExtent.height;
+		x /= swapChainExtent.width / 2;
+		width /= swapChainExtent.width / 2;
+		y /= swapChainExtent.height / 2;
+		height /= swapChainExtent.height / 2;
 		imageMin.x /= TextureWidth;
 		imageMin.y /= TextureHeight;
 		imageMax.x /= TextureWidth;
