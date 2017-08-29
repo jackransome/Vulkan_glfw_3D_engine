@@ -1,11 +1,10 @@
 #pragma once
 #include "Math.h"
 #include <vector>
-#include <GLM\glm.hpp>
+#include <glm\glm.hpp>
 #include "BoundingBox.h"
 //class which has all methods needed for collision detection used in the game, the standard paramater for an object that is going to be tested is BoundingBox found in the GameEngine
-namespace GameEngine {
-	class CollisionDetection
+class CollisionDetection
 	{
 	public:
 		CollisionDetection();
@@ -33,4 +32,3 @@ namespace GameEngine {
 		bool test8(glm::vec4* _rect1, glm::vec4* _rect2);
 		int getSide(glm::vec4* _rect1, glm::vec4* _rect2);
 	};
-}

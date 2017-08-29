@@ -3,6 +3,7 @@
 #include "SpriteSheet.h"
 #include <functional>
 #include "Player.h"
+#include "CollisionDetection.h"
 
 Input input;
 Graphics graphics;
@@ -47,13 +48,31 @@ int main() {
 		std::cerr << e.what() << std::endl;
 		return EXIT_FAILURE;
 	}
+	BoundingBox blueBox;
+	blueBox.x = -500;
+	blueBox.y = -500;
+	blueBox.w = 500;
+	blueBox.h = 500;
+
+	BoundingBox redBox;
+	redBox.x = -250;
+	redBox.y = 200;
+	redBox.w = 500;
+	redBox.h = 100;
+	CollisionDetection cd;
 	while (!glfwWindowShouldClose(graphics.window) && !input.EXIT) {
 		input.run();
 		player.handleInput();
 		player.updatePosition();
+		cd.correctPosition(player.getBoundingBoxPointer(), &blueBox);
+		cd.correctPosition(player.getBoundingBoxPointer(), &redBox);
 		player.draw();
-
-		graphics.drawRect(-2560/2, -1600/2, 1000, 1000, 1, 0, 1, 1);
+		
+		
+		//blue box
+		graphics.drawRect(-500, -500, 500, 500, 0.1, 0.1, 0.9, 1);
+		//red box
+		graphics.drawRect(-250, 200, 500, 100, 0.9, 0.1, 0.1, 1);
 		
 		graphics.drawFrame();
 		graphics.handleTiming();

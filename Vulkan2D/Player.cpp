@@ -26,6 +26,11 @@ BoundingBox Player::getBoundingBox()
 	return boundingBox;
 }
 
+BoundingBox* Player::getBoundingBoxPointer()
+{
+	return &boundingBox;
+}
+
 void Player::handleInput()
 {
 	if (inputPointer->keys.a) {
@@ -45,21 +50,23 @@ void Player::handleInput()
 		boundingBox.xv = 0;
 	}
 	if (inputPointer->keys.w) {
-		if (!inputPointer->keys.s) {
+		if (boundingBox.onGround) {
 			boundingBox.yv = -velocity;
 			lastDirection = up;
 		}
 		else {
-			boundingBox.yv = 0;
+			//boundingBox.yv = 0;
 		}
 	}
 	else if (inputPointer->keys.s) {
-		boundingBox.yv = velocity;
+		//boundingBox.yv = velocity;
 		lastDirection = down;
 	}
 	else {
-		boundingBox.yv = 0;
+		//boundingBox.yv = 0;
 	}
+	boundingBox.yv += 0.15;
+	boundingBox.onGround = false;
 }
 
 void Player::updatePosition()

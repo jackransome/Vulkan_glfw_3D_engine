@@ -1,7 +1,6 @@
 #include  "CollisionDetection.h"
 #include <iostream>
-struct collisionResult { collisionResult() : left(false), right(false), top(false), bottom(false) {} bool left; bool right; bool top; bool bottom; };
-namespace GameEngine {
+struct collisionResult { collisionResult() : left(false), right(false), bottom(false), top(false) {} bool left; bool right; bool bottom; bool top; };
 	CollisionDetection::CollisionDetection() {}
 	CollisionDetection::~CollisionDetection() {}
 	bool CollisionDetection::CheckRectangleIntersect(glm::vec4* _rect1, glm::vec4* _rect2)
@@ -207,10 +206,10 @@ namespace GameEngine {
 		collisionResult result;
 		if (bb1->x + bb1->w > bb2->x && bb1->x < bb2->x + bb2->w) {
 			if (bb1->y < bb2->y && bb1->y + bb1->h + bb1->yv > bb2->y) {
-				result.bottom = true;
+				result.top = true;
 			}
 			else if (bb1->y + bb1->h > bb2->y + bb2->h && bb1->y + bb1->yv < bb2->y + bb2->h) {
-				result.top = true;
+				result.bottom = true;
 			}
 		}
 		if (bb1->y + bb1->h > bb2->y && bb1->y < bb2->y + bb2->h) {
@@ -221,7 +220,7 @@ namespace GameEngine {
 				result.right = true;
 			}
 		}
-		if (result.bottom) {
+		if (result.top) {
 			if (result.left) {
 				if (bb1->y + bb1->h + bb1->yv - bb2->y > (bb1->x + bb1->w + bb1->xv) - bb2->x) {
 					bb1->y = bb2->y - bb1->h;
@@ -230,6 +229,7 @@ namespace GameEngine {
 				else {
 					bb1->x = bb2->x - bb1->w;
 					if (bb1->xv > 0) { bb1->xv = 0; }
+					bb1->onGround = true;
 				}
 			}
 			else if (result.right) {
@@ -240,14 +240,16 @@ namespace GameEngine {
 				else {
 					bb1->x = bb2->x + bb2->w;
 					if (bb1->xv < 0) { bb1->xv = 0; }
+					bb1->onGround = true;
 				}
 			}
 			else {
 				bb1->y = bb2->y - bb1->h;
 				bb1->yv = 0;
+				bb1->onGround = true;
 			}
 		}
-		else if (result.top) {
+		else if (result.bottom) {
 			if (result.left) {
 				if (bb2->y + bb2->h - (bb1->y + bb1->yv) > bb1->x + bb1->w + bb1->xv - bb2->x) {
 					bb1->x = bb2->x - bb1->w;
@@ -256,11 +258,6 @@ namespace GameEngine {
 				else {
 					bb1->y = bb2->y + bb2->h;
 					if (bb1->yv < 0) { bb1->yv = 0; }
-					bb1->onGround = true;
-					//fullyOnGroundTest
-					if (bb1->x > bb2->x && bb2->x + bb2->w > bb1->x + bb1->w) {
-						bb1->fullyOnGround = true;
-					}
 				}
 				
 			}
@@ -274,20 +271,11 @@ namespace GameEngine {
 
 					bb1->y = bb2->y + bb2->h;
 					if (bb1->yv < 0) { bb1->yv = 0; }
-					bb1->onGround = true;
-					//fullyOnGroundTest
-					if (bb1->x > bb2->x && bb2->x + bb2->w > bb1->x + bb1->w) {
-						bb1->fullyOnGround = true;
-					}
 				}
 			}
 			else {
 				bb1->y = bb2->y + bb2->h;
 				bb1->yv = 0;
-				bb1->onGround = true;
-				if (bb1->x > bb2->x && bb2->x + bb2->w > bb1->x + bb1->w) {
-					bb1->fullyOnGround = true;
-				}
 			}
 		}
 		else if (result.left) {
@@ -422,4 +410,3 @@ namespace GameEngine {
 		float test = abs(abs(_1) - abs(_2));
 		return test;
 	}
-}

@@ -8,6 +8,7 @@ public:
 	Player(int _x, int _y, Input* _inputPointer, Graphics* _graphicsPointer);
 	~Player();
 	BoundingBox getBoundingBox();
+	BoundingBox* getBoundingBoxPointer();
 	void handleInput();
 	void updatePosition();
 	void draw();
