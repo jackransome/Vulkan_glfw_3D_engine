@@ -51,7 +51,7 @@ void Player::handleInput()
 	}
 	if (inputPointer->keys.w) {
 		if (boundingBox.onGround) {
-			boundingBox.yv = -velocity;
+			boundingBox.yv = -3 * velocity;
 			lastDirection = up;
 		}
 		else {
@@ -65,7 +65,12 @@ void Player::handleInput()
 	else {
 		//boundingBox.yv = 0;
 	}
-	boundingBox.yv += 0.15;
+
+	if (inputPointer->keys.f) {
+		boundingBox.x = 0;
+		boundingBox.y = 0;
+	}
+	boundingBox.yv += 0.5;
 	boundingBox.onGround = false;
 }
 

@@ -58,7 +58,14 @@ int main() {
 	redBox.x = -250;
 	redBox.y = 200;
 	redBox.w = 500;
-	redBox.h = 100;
+	redBox.h = 50;
+
+	BoundingBox greenBox;
+	greenBox.x = -500;
+	greenBox.y = 600;
+	greenBox.w = 1000;
+	greenBox.h = 10;
+
 	CollisionDetection cd;
 	while (!glfwWindowShouldClose(graphics.window) && !input.EXIT) {
 		input.run();
@@ -66,13 +73,16 @@ int main() {
 		player.updatePosition();
 		cd.correctPosition(player.getBoundingBoxPointer(), &blueBox);
 		cd.correctPosition(player.getBoundingBoxPointer(), &redBox);
+		cd.correctPosition(player.getBoundingBoxPointer(), &greenBox);
 		player.draw();
 		
 		
 		//blue box
 		graphics.drawRect(-500, -500, 500, 500, 0.1, 0.1, 0.9, 1);
 		//red box
-		graphics.drawRect(-250, 200, 500, 100, 0.9, 0.1, 0.1, 1);
+		graphics.drawRect(-250, 200, 500, 50, 0.9, 0.1, 0.1, 1);
+		//green box
+		graphics.drawRect(-500, 600, 1000, 10, 0.1, 0.9, 0.1, 1);
 		
 		graphics.drawFrame();
 		graphics.handleTiming();
