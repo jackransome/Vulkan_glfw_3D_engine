@@ -4,6 +4,7 @@
 #include <functional>
 #include "Player.h"
 #include "CollisionDetection.h"
+#include "Platform.h"
 
 Input input;
 Graphics graphics;
@@ -65,25 +66,34 @@ int main() {
 	greenBox.y = 600;
 	greenBox.w = 1000;
 	greenBox.h = 10;
+	srand(time(0));
+	std::vector<Platform> platforms;
+	for (int i = 0; i < 60; i++) {
+		platforms.push_back(Platform(((double)rand() / (RAND_MAX))*1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX))*100 + 80, ((double)rand() / (RAND_MAX))*40 + 20, &graphics));
+	}
 
 	CollisionDetection cd;
 	while (!glfwWindowShouldClose(graphics.window) && !input.EXIT) {
 		input.run();
 		player.handleInput();
 		player.updatePosition();
-		cd.correctPosition(player.getBoundingBoxPointer(), &blueBox);
-		cd.correctPosition(player.getBoundingBoxPointer(), &redBox);
-		cd.correctPosition(player.getBoundingBoxPointer(), &greenBox);
+
+		for (int i = 0; i < platforms.size(); i++) {
+			cd.correctPosition(player.getBoundingBoxPointer(), platforms[i].getBoundingBoxPointer());
+		}		
+		
+		if (input.keys.tab) {
+			platforms.clear();
+			for (int i = 0; i < 60; i++) {
+				platforms.push_back(Platform(((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 100 + 80, ((double)rand() / (RAND_MAX)) * 40 + 20, &graphics));
+			}
+		}
+
 		player.draw();
-		
-		
-		//blue box
-		graphics.drawRect(-500, -500, 500, 500, 0.1, 0.1, 0.9, 1);
-		//red box
-		graphics.drawRect(-250, 200, 500, 50, 0.9, 0.1, 0.1, 1);
-		//green box
-		graphics.drawRect(-500, 600, 1000, 10, 0.1, 0.9, 0.1, 1);
-		
+		for (int i = 0; i < platforms.size(); i++) {
+			platforms[i].draw();
+		}
+
 		graphics.drawFrame();
 		graphics.handleTiming();
 	}

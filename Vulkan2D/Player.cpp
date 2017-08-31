@@ -12,7 +12,7 @@ Player::Player(int _x, int _y, Input* _inputPointer, Graphics* _graphicsPointer)
 	standingHorizontal.init(_graphicsPointer, glm::vec2(124, 225), 13, 25, 6, 1, 5);
 	standingVerticleUp.init(_graphicsPointer, glm::vec2(124, 275), 13, 25, 6, 1, 5);
 	standingVerticleDown.init(_graphicsPointer, glm::vec2(124, 250), 13, 25, 6, 1, 5);
-	velocity = 8;
+	velocity = 7;
 	boundingBox.w = 50;
 	boundingBox.h = 50;
 }
@@ -51,7 +51,7 @@ void Player::handleInput()
 	}
 	if (inputPointer->keys.w) {
 		if (boundingBox.onGround) {
-			boundingBox.yv = -3 * velocity;
+			boundingBox.yv = -30;
 			lastDirection = up;
 		}
 		else {
@@ -68,9 +68,9 @@ void Player::handleInput()
 
 	if (inputPointer->keys.f) {
 		boundingBox.x = 0;
-		boundingBox.y = 0;
+		boundingBox.y = -500;
 	}
-	boundingBox.yv += 0.5;
+	boundingBox.yv += 1.2;
 	boundingBox.onGround = false;
 }
 
