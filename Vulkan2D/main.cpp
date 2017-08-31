@@ -76,11 +76,12 @@ int main() {
 	while (!glfwWindowShouldClose(graphics.window) && !input.EXIT) {
 		input.run();
 		player.handleInput();
-		player.updatePosition();
-
 		for (int i = 0; i < platforms.size(); i++) {
 			cd.correctPosition(player.getBoundingBoxPointer(), platforms[i].getBoundingBoxPointer());
-		}		
+		}
+		player.updatePosition();
+
+
 		
 		if (input.keys.tab) {
 			platforms.clear();

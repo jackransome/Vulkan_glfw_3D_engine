@@ -222,6 +222,7 @@ struct collisionResult { collisionResult() : left(false), right(false), bottom(f
 		}
 		if (result.top) {
 			if (result.left) {
+
 				if (bb1->y + bb1->h + bb1->yv - bb2->y > (bb1->x + bb1->w + bb1->xv) - bb2->x) {
 					bb1->x = bb2->x - bb1->w;
 					if (bb1->xv > 0) { bb1->xv = 0; }
@@ -229,10 +230,9 @@ struct collisionResult { collisionResult() : left(false), right(false), bottom(f
 				else {
 					bb1->y = bb2->y - bb1->h;
 					if (bb1->yv > 0) {
-						bb1->yv = 0; 
+						bb1->yv = 0;
 						bb1->onGround = true;
 					}
-					
 				}
 			}
 			else if (result.right) {
