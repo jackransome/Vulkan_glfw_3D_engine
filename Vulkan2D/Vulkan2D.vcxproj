@@ -119,6 +119,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BloodParticle.cpp" />
     <ClCompile Include="CollisionDetection.cpp" />
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="Input.cpp" />
@@ -128,6 +129,7 @@
     <ClCompile Include="SpriteSheet.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BloodParticle.h" />
     <ClInclude Include="BoundingBox.h" />
     <ClInclude Include="CollisionDetection.h" />
     <ClInclude Include="Graphics.h" />

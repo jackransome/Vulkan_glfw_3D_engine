@@ -5,6 +5,7 @@
 #include "Player.h"
 #include "CollisionDetection.h"
 #include "Platform.h"
+#include "BloodParticle.h"
 
 Input input;
 Graphics graphics;
@@ -80,8 +81,6 @@ int main() {
 			cd.correctPosition(player.getBoundingBoxPointer(), platforms[i].getBoundingBoxPointer());
 		}
 		player.updatePosition();
-
-
 		
 		if (input.keys.tab) {
 			platforms.clear();
