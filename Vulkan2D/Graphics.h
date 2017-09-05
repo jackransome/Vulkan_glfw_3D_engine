@@ -43,8 +43,8 @@ namespace std {
 }
 
 //initial width and height of the window
-const int initialWidth = 1920;
-const int initialHeight = 1080;
+const int initialWidth = 2560;
+const int initialHeight = 1600;
 
 //path for the texture
 const std::string TEXTURE_PATH = "textures/texture.png";
@@ -125,9 +125,6 @@ public:
 	void drawCharacter(int i, glm::vec2 pos, bool upperCase);
 
 	GLFWwindow* window;
-
-	bool drawLines = false;
-
 private:
 	
 
@@ -160,21 +157,13 @@ private:
 	VkImageView textureImageView;
 	VkSampler textureSampler;
 
-	std::vector<Vertex> triangleVertices;
-	std::vector<uint32_t> triangleIndices;
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
 
-	std::vector<Vertex> lineVertices;
-	std::vector<uint32_t> lineIndices;
-
-	VkBuffer triangleVertexBuffer;
-	VkDeviceMemory triangleVertexBufferMemory;
-	VkBuffer triangleIndexBuffer;
-	VkDeviceMemory triangleIndexBufferMemory;
-
-	VkBuffer lineVertexBuffer;
-	VkDeviceMemory lineVertexBufferMemory;
-	VkBuffer lineIndexBuffer;
-	VkDeviceMemory lineIndexBufferMemory;
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
 
 	VkBuffer uniformStagingBuffer;
 	VkDeviceMemory uniformStagingBufferMemory;
@@ -246,7 +235,9 @@ private:
 
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
-	void clearBuffer(VkBuffer buffer, VkDeviceMemory bufferMemory);
+	void clearVertexBuffer();
+
+	void clearIndexBuffer();
 
 	void createVertexBuffer(std::vector<Vertex> _vertices, VkBuffer& _vertexBuffer, VkDeviceMemory& _vertexBufferMemory);
 
@@ -258,7 +249,7 @@ private:
 
 	void createSemaphores();
 
-	void createCommandBuffers(VkBuffer vertexBuffer);
+	void createCommandBuffers();
 
 	void createCommandPool();
 
@@ -266,7 +257,7 @@ private:
 
 	void createRenderPass();
 
-	void createGraphicsPipeline(VkPrimitiveTopology primitiveTopology);
+	void createGraphicsPipeline();
 
 	void createShaderModule(const std::vector<char>& code, VkShaderModule& shaderModule);
 

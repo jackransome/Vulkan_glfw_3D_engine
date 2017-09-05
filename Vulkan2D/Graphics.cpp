@@ -52,31 +52,19 @@
 		createImageViews();
 		createRenderPass();
 		createDescriptorSetLayout();
-		createGraphicsPipeline(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+		createGraphicsPipeline();
 		createCommandPool();
 		createDepthResources();
 		createFramebuffers();
 		createTextureImage();
 		createTextureImageView();
 		createTextureSampler();
-		createVertexBuffer(triangleVertices, triangleVertexBuffer, triangleVertexBufferMemory);
-		createIndexBuffer(triangleIndices, triangleIndexBuffer, triangleIndexBufferMemory);
-		Vertex temp;
-		temp.normal = glm::vec3(0.111, 0.111, 0.111);
-		temp.texCoord = { 1, 0 };
-		temp.pos = glm::vec3(0, 0, 0);
-		temp.colour = { 1, 0, 0, 1 };
-		lineVertices.push_back(temp);
-		temp.pos = glm::vec3(100, 100, 0);
-		lineVertices.push_back(temp);
-		lineIndices.push_back(0);
-		lineIndices.push_back(1);
-		createVertexBuffer(lineVertices, lineVertexBuffer, lineVertexBufferMemory);
-		createIndexBuffer(lineIndices, lineIndexBuffer, lineIndexBufferMemory);
+		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
+		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
 		createUniformBuffer();
 		createDescriptorPool();
 		createDescriptorSet();
-		createCommandBuffers(triangleVertexBuffer);
+		createCommandBuffers();
 		createSemaphores();
 	}
 	void Graphics::createDepthResources() {
@@ -513,11 +501,17 @@
 		vkBindBufferMemory(device, buffer, bufferMemory, 0);
 	}
 	//Functions for manually cleaning up the vertex and index buffers and freeing up the memory used
-	void Graphics::clearBuffer(VkBuffer buffer, VkDeviceMemory bufferMemory) {
-		vkDestroyBuffer(device, buffer, nullptr);
-		vkFreeMemory(device, bufferMemory, nullptr);
-		bufferMemory = VK_NULL_HANDLE;
-		buffer = VK_NULL_HANDLE;
+	void Graphics::clearVertexBuffer() {
+		vkDestroyBuffer(device, vertexBuffer, nullptr);
+		vkFreeMemory(device, vertexBufferMemory, nullptr);
+		vertexBufferMemory = VK_NULL_HANDLE;
+		vertexBuffer = VK_NULL_HANDLE;
+	}
+	void Graphics::clearIndexBuffer() {
+		vkDestroyBuffer(device, indexBuffer, nullptr);
+		vkFreeMemory(device, indexBufferMemory, nullptr);
+		indexBufferMemory = VK_NULL_HANDLE;
+		indexBuffer = VK_NULL_HANDLE;
 	}
 	//Function that creates a vertex buffe ron the graphics card that can be accessed by shaders, using vertex data in memory
 	void Graphics::createVertexBuffer(std::vector<Vertex> _vertices, VkBuffer& _vertexBuffer, VkDeviceMemory& _vertexBufferMemory) {
@@ -593,10 +587,10 @@
 		createSwapChain();
 		createImageViews();
 		createRenderPass();
-		createGraphicsPipeline(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+		createGraphicsPipeline();
 		createDepthResources();
 		createFramebuffers();
-		createCommandBuffers(triangleVertexBuffer);
+		createCommandBuffers();
 	}
 	//Function for creating semaphores that are needed
 	void Graphics::createSemaphores() {
@@ -610,7 +604,7 @@
 		}
 	}
 	//allocates and records commands for every swapchain image
-	void Graphics::createCommandBuffers(VkBuffer vertexBuffer) {
+	void Graphics::createCommandBuffers() {
 		if (commandBuffers.size() > 0) {
 			vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data());
 		}
@@ -658,13 +652,11 @@
 			std::vector<VkBuffer> test;
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-			vkCmdBindIndexBuffer(commandBuffers[i], triangleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
-			vkCmdDrawIndexed(commandBuffers[i], triangleIndices.size(), 1, 0, 0, 0);
-
-			vkCmdDrawIndexed(commandBuffers[i], lineIndices.size(), 1, 0, 0, 0);
+			vkCmdDrawIndexed(commandBuffers[i], indices.size(), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -768,7 +760,7 @@
 		}
 	}
 	//creating the graphics pipeline, which include the vertex shader, fragment shader, multisampling, etc. 
-	void Graphics::createGraphicsPipeline(VkPrimitiveTopology primitiveTopology) {
+	void Graphics::createGraphicsPipeline() {
 		//loading vertex and fragment shaders
 		auto vertShaderCode = readFile("shaders/vert.spv");
 		auto fragShaderCode = readFile("shaders/frag.spv");
@@ -808,7 +800,7 @@
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		inputAssembly.topology = primitiveTopology;
+		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 		VkViewport viewport = {};
@@ -961,20 +953,20 @@
 		temp.texCoord = { 1, 0 };
 		temp.pos = glm::vec3(x, y, 0);
 		temp.colour = { r, g, b, a };
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.pos = glm::vec3(x, y + height, 0);
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.pos = glm::vec3(x + width, y + height, 0);
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.pos = glm::vec3(x + width, y, 0);
-		triangleVertices.push_back(temp);
-		triangleIndices.push_back(triangleVertices.size() - 4);
-		triangleIndices.push_back(triangleVertices.size() - 3);
-		triangleIndices.push_back(triangleVertices.size() - 2);
+		vertices.push_back(temp);
+		indices.push_back(vertices.size() - 4);
+		indices.push_back(vertices.size() - 3);
+		indices.push_back(vertices.size() - 2);
 
-		triangleIndices.push_back(triangleVertices.size() - 4);
-		triangleIndices.push_back(triangleVertices.size() - 2);
-		triangleIndices.push_back(triangleVertices.size() - 1);
+		indices.push_back(vertices.size() - 4);
+		indices.push_back(vertices.size() - 2);
+		indices.push_back(vertices.size() - 1);
 	}
 	//function for drawing a image not affected my the matrices involved with 3D graphics, so it can just be srawns are a perfect flat image to the screen
 	void Graphics::drawFlatImage(float x, float y, float width, float height, glm::vec2 imageMin, glm::vec2 imageMax) {
@@ -991,23 +983,23 @@
 		temp.texCoord = imageMin;
 		temp.pos = glm::vec3(x, y, 0);
 		temp.colour = { 1, 0, 1 , 1 };
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.texCoord = glm::vec2(imageMin.x, imageMax.y);
 		temp.pos = glm::vec3(x, y + height, 0);
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.texCoord = imageMax;
 		temp.pos = glm::vec3(x + width, y + height, 0);
-		triangleVertices.push_back(temp);
+		vertices.push_back(temp);
 		temp.texCoord = glm::vec2(imageMax.x, imageMin.y);
 		temp.pos = glm::vec3(x + width, y, 0);
-		triangleVertices.push_back(temp);
-		triangleIndices.push_back(triangleVertices.size() - 4);
-		triangleIndices.push_back(triangleVertices.size() - 3);
-		triangleIndices.push_back(triangleVertices.size() - 2);
+		vertices.push_back(temp);
+		indices.push_back(vertices.size() - 4);
+		indices.push_back(vertices.size() - 3);
+		indices.push_back(vertices.size() - 2);
 
-		triangleIndices.push_back(triangleVertices.size() - 4);
-		triangleIndices.push_back(triangleVertices.size() - 2);
-		triangleIndices.push_back(triangleVertices.size() - 1);
+		indices.push_back(vertices.size() - 4);
+		indices.push_back(vertices.size() - 2);
+		indices.push_back(vertices.size() - 1);
 	}
 	//Draws a single character
 	void Graphics::drawCharacter(int i, glm::vec2 pos, bool upperCase) {
@@ -1099,47 +1091,20 @@
 	}
 	//gets the image from the swap chain, executes the command buffer, with the swapchain image in the framebuffer, returns the image to the swap chain for presentation
 	void Graphics::drawFrame() {
-		if (triangleVertices.size() == 0 || triangleIndices.size() == 0) {
+		if (vertices.size() == 0 || indices.size() == 0) {
 			throw;
 		}
 
 		updateUniformBuffer();
 
-		clearBuffer(triangleVertexBuffer, triangleVertexBufferMemory);
-		clearBuffer(triangleIndexBuffer, triangleIndexBufferMemory);
-		clearBuffer(lineVertexBuffer, lineVertexBufferMemory);
-		clearBuffer(lineIndexBuffer, lineIndexBufferMemory);
-		
-		createGraphicsPipeline(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+		clearVertexBuffer();
+		clearIndexBuffer();
+		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
+		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
+		createCommandBuffers();
 
-		createVertexBuffer(triangleVertices, triangleVertexBuffer, triangleVertexBufferMemory);
-		createIndexBuffer(triangleIndices, triangleIndexBuffer, triangleIndexBufferMemory);
-		
-		
-		createGraphicsPipeline(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-		Vertex temp;
-		temp.normal = glm::vec3(0.111, 0.111, 0.111);
-		temp.texCoord = { 1, 0 };
-		temp.pos = glm::vec3(0, 0, 0);
-		temp.colour = { 1, 0, 0, 1 };
-		lineVertices.push_back(temp);
-		temp.pos = glm::vec3(100, 100, 0);
-		lineVertices.push_back(temp);
-		lineIndices.push_back(0);
-		lineIndices.push_back(1);
-
-		createVertexBuffer(lineVertices, lineVertexBuffer, lineVertexBufferMemory);
-		createIndexBuffer(lineIndices, lineIndexBuffer, lineIndexBufferMemory);
-		
-		
-		
-		triangleVertices.clear();
-		triangleIndices.clear();
-
-		lineVertices.clear();
-		lineIndices.clear();
-
-		createCommandBuffers(triangleVertexBuffer);
+		vertices.clear();
+		indices.clear();
 
 		uint32_t imageIndex;
 
@@ -1173,7 +1138,6 @@
 		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
-
 		//last step: submitting the result back to the swap chain so it is shown on the screen
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
