@@ -45,31 +45,22 @@ int main() {
 		graphics.drawRect(0, 0, 1000, 1000, 1, 0, 1, 1);
 		graphics.initVulkan();
 		input.init(graphics.window);
+
 	}
 	catch (const std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;
+		while (true)
+		{
+			int x = 0;
+		}
 		return EXIT_FAILURE;
 	}
-	BoundingBox blueBox;
-	blueBox.x = -500;
-	blueBox.y = -500;
-	blueBox.w = 500;
-	blueBox.h = 500;
 
-	BoundingBox redBox;
-	redBox.x = -250;
-	redBox.y = 200;
-	redBox.w = 500;
-	redBox.h = 50;
-
-	BoundingBox greenBox;
-	greenBox.x = -500;
-	greenBox.y = 600;
-	greenBox.w = 1000;
-	greenBox.h = 10;
+	//seeding the random function with the current time
 	srand(time(0));
+
 	std::vector<Platform> platforms;
-	for (int i = 0; i < 60; i++) {
+	for (int i = 0; i < 20; i++) {
 		platforms.push_back(Platform(((double)rand() / (RAND_MAX))*1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX))*100 + 80, ((double)rand() / (RAND_MAX))*40 + 20, &graphics));
 	}
 
@@ -84,9 +75,16 @@ int main() {
 		
 		if (input.keys.tab) {
 			platforms.clear();
-			for (int i = 0; i < 60; i++) {
-				platforms.push_back(Platform(((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 100 + 80, ((double)rand() / (RAND_MAX)) * 40 + 20, &graphics));
+			for (int i = 0; i < 20; i++) {
+				platforms.push_back(Platform(((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 160 + 60, ((double)rand() / (RAND_MAX)) * 80 + 10, &graphics));
 			}
+		}
+
+		if (input.keys.n0) {
+			graphics.drawLines = true;
+		}
+		if (input.keys.n1) {
+			graphics.drawLines = false;
 		}
 
 		player.draw();
