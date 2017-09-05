@@ -10,6 +10,7 @@ class CollisionDetection
 		CollisionDetection();
 		~CollisionDetection();
 		bool CheckRectangleIntersect(glm::vec4* _rect1, glm::vec4* _rect2);
+		bool CheckRectangleIntersect(BoundingBox* bb1, BoundingBox* bb2);
 		void correctPosition(glm::vec4* _rect1, glm::vec4* _rect2);
 		void correctPosition(BoundingBox* bb1, BoundingBox* bb2);
 		bool isCheckRequired(BoundingBox* bb1, BoundingBox* bb2);

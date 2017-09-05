@@ -14,6 +14,17 @@ struct collisionResult { collisionResult() : left(false), right(false), bottom(f
 			return false;
 		}
 	}
+	bool CollisionDetection::CheckRectangleIntersect(BoundingBox * bb1, BoundingBox * bb2)
+	{
+		if (bb1->x + bb1->w > bb2->x && bb1->x < bb2->x + bb2->w && bb1->y + bb1->h > bb2->y && bb1->y < bb2->y + bb2->h)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 	bool CollisionDetection::test1(glm::vec4* _rect1, glm::vec4* _rect2) {
 		if (_rect1->x + _rect1->z >= _rect2->x) {
 			return true;

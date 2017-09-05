@@ -1292,7 +1292,7 @@
 		vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
 		vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
 	}
-	//creating the swapchain required for switching images/buffers and drawning them onto the screen
+	//creating the swapchain required for switching images/buffers and drawing them onto the screen
 	void Graphics::createSwapChain() {
 		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 

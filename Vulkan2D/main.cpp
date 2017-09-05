@@ -69,6 +69,7 @@ int main() {
 	greenBox.h = 10;
 	srand(time(0));
 	std::vector<Platform> platforms;
+	std::vector<BloodParticle> bloodParticles;
 	for (int i = 0; i < 60; i++) {
 		platforms.push_back(Platform(((double)rand() / (RAND_MAX))*1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX))*100 + 80, ((double)rand() / (RAND_MAX))*40 + 20, &graphics));
 	}
@@ -88,10 +89,23 @@ int main() {
 				platforms.push_back(Platform(((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 1800 - 900, ((double)rand() / (RAND_MAX)) * 100 + 80, ((double)rand() / (RAND_MAX)) * 40 + 20, &graphics));
 			}
 		}
-
+		BoundingBox p = player.getBoundingBox();
+		bloodParticles.push_back(BloodParticle(p.x, p.y, ((double)rand() / (RAND_MAX)) * 10 - 5, ((double)rand() / (RAND_MAX)) * 10 - 5, 5, 5, &graphics));
 		player.draw();
+		
+		for (int i = 0; i < bloodParticles.size(); i++) {
+			bloodParticles[i].draw();
+			bloodParticles[i].updatePosition();
+		}
+
 		for (int i = 0; i < platforms.size(); i++) {
 			platforms[i].draw();
+			for (int j = 0; j < bloodParticles.size(); j++) {
+				if (cd.CheckRectangleIntersect(platforms[i].getBoundingBoxPointer(), bloodParticles[j].getBoundingBoxPointer())){
+					bloodParticles.erase(bloodParticles.begin() + j);
+					j--;
+				}
+			}
 		}
 
 		graphics.drawFrame();

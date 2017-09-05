@@ -43,8 +43,8 @@ namespace std {
 }
 
 //initial width and height of the window
-const int initialWidth = 2560;
-const int initialHeight = 1600;
+const int initialWidth = 1920;
+const int initialHeight = 1080;
 
 //path for the texture
 const std::string TEXTURE_PATH = "textures/texture.png";

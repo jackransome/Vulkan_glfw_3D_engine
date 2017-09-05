@@ -22,7 +22,7 @@ BoundingBox* BloodParticle::getBoundingBoxPointer()
 }
 
 void BloodParticle::updatePosition() {
-	boundingBox.y += 0.7;
+	boundingBox.yv += 0.7;
 	boundingBox.x += boundingBox.xv;
 	boundingBox.y += boundingBox.yv;
 }
