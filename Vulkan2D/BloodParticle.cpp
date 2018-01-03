@@ -7,6 +7,7 @@ BloodParticle::BloodParticle(int _x, int _y, float _xv, float _yv, float _w, flo
 	boundingBox.yv = _yv;
 	boundingBox.w = _w;
 	boundingBox.h = _h;
+	graphicsPointer = _graphicsPointer;
 }
 
 BloodParticle::~BloodParticle() {

@@ -515,20 +515,28 @@
 	}
 	//Function that creates a vertex buffe ron the graphics card that can be accessed by shaders, using vertex data in memory
 	void Graphics::createVertexBuffer(std::vector<Vertex> _vertices, VkBuffer& _vertexBuffer, VkDeviceMemory& _vertexBufferMemory) {
+		
+		//getting size that the buffer should be
 		VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
+
+		//creating staging buffer
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
+		//copying data to the staging buffer
 		void* data;
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 		memcpy(data, _vertices.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
 
+		//creating vertex buffer in vram
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
 
+		//copying from the staging buffer to the vertex buffer
 		copyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
 
+		//destroying the staging buffer
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
 		stagingBufferMemory = VK_NULL_HANDLE;
