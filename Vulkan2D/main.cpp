@@ -35,7 +35,6 @@ int main() {
 	testSprite2.init(&graphics, glm::vec2(20, 225), 13, 25, 7, 8, 7);
 
 	Player player (0, 0, &input, &graphics);
-
 	try {
 		graphics.initWindow();
 		glfwSetKeyCallback(graphics.window, key_callback);
@@ -45,6 +44,7 @@ int main() {
 		graphics.drawRect(0, 0, 1000, 1000, 1, 0, 1, 1);
 		graphics.initVulkan();
 		input.init(graphics.window);
+
 	}
 	catch (const std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;
@@ -90,7 +90,7 @@ int main() {
 			}
 		}
 		BoundingBox p = player.getBoundingBox();
-		bloodParticles.push_back(BloodParticle(p.x, p.y, ((double)rand() / (RAND_MAX)) * 10 - 5, ((double)rand() / (RAND_MAX)) * 10 - 5, 5, 5, &graphics));
+		//bloodParticles.push_back(BloodParticle(p.x, p.y, ((double)rand() / (RAND_MAX)) * 10 - 5, ((double)rand() / (RAND_MAX)) * 10 - 5, 5, 5, &graphics));
 		player.draw();
 		
 		for (int i = 0; i < bloodParticles.size(); i++) {
@@ -111,5 +111,6 @@ int main() {
 		graphics.drawFrame();
 		graphics.handleTiming();
 	}
+	
 	return EXIT_SUCCESS;
 }

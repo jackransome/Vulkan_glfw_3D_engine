@@ -918,13 +918,18 @@
 		vkDeviceWaitIdle(device);
 		float delay = 1.0f / 60.0f;
 		float temp = glfwGetTime();
-
+		fpsDisplayTimer++;
+		//printing the fps every second (or 60 frames, varies when the framerate drops_
+		if (fpsDisplayTimer >= 60) {
+			fpsDisplayTimer = 0;
+			std::cout << "Framerate: " << floor(1 / (temp - time)) << std::endl;
+		}
 		//delaying the thread based on how much time has elapsed since it started so the program runs at a consistent framerate
 		if (temp - time < delay) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(int(1000 * (delay - (temp - time)))));
 		}
 		else {
-			//std::cout << "FRAME DROP" << std::endl;
+	
 		}
 		time = glfwGetTime();
 	}

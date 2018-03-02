@@ -63,7 +63,7 @@ const std::vector<const char*> deviceExtensions = {
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
-const bool enableValidationLayers = true;
+const bool enableValidationLayers = false;
 #endif
 //
 ////Creating the debug callback for getting the error when something goes wrong, for debugging purposes
@@ -182,6 +182,11 @@ private:
 	VkDeviceMemory depthImageMemory;
 
 	VkImageView depthImageView;
+
+
+	int fpsDisplayTimer = 0;
+
+	int fps;
 
 	int windowWidth, windowHeight;
 
