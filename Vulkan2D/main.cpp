@@ -91,15 +91,15 @@ int main() {
 		}
 		BoundingBox p = player.getBoundingBox();
 		//bloodParticles.push_back(BloodParticle(p.x, p.y, ((double)rand() / (RAND_MAX)) * 10 - 5, ((double)rand() / (RAND_MAX)) * 10 - 5, 5, 5, &graphics));
-		player.draw();
+		//.draw();
 		
 		for (int i = 0; i < bloodParticles.size(); i++) {
-			bloodParticles[i].draw();
+			//[i].draw();
 			bloodParticles[i].updatePosition();
 		}
 
 		for (int i = 0; i < platforms.size(); i++) {
-			platforms[i].draw();
+			//platforms[i].draw();
 			for (int j = 0; j < bloodParticles.size(); j++) {
 				if (cd.CheckRectangleIntersect(platforms[i].getBoundingBoxPointer(), bloodParticles[j].getBoundingBoxPointer())){
 					bloodParticles.erase(bloodParticles.begin() + j);
@@ -107,7 +107,15 @@ int main() {
 				}
 			}
 		}
-
+		graphics.drawRect(-500, 0, 10, 10, 1, 0, 0, 1);
+		graphics.drawRect(-485, 0, 10, 10, 1, 0, 0.5, 1);
+		graphics.drawRect(-470, 0, 10, 10, 1, 0, 1, 1);
+		graphics.drawRect(-455, 0, 10, 10, 0.5, 0, 1, 1);
+		graphics.drawRect(-440, 0, 10, 10, 0, 0, 1, 1);
+		graphics.drawRect(-425, 0, 10, 10, 0, 0.5, 1, 1);
+		graphics.drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
+		graphics.drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
+		graphics.drawRect(-380, 0, 10, 10, 0, 1, 0, 1);
 		graphics.drawFrame();
 		graphics.handleTiming();
 	}

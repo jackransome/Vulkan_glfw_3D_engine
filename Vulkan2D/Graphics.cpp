@@ -26,7 +26,7 @@
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);//may need to remove this
 
 		window = glfwCreateWindow(initialWidth, initialHeight, "Vulkan", nullptr, nullptr);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
 
 		glfwSetWindowUserPointer(window, this);
@@ -513,7 +513,7 @@
 		indexBufferMemory = VK_NULL_HANDLE;
 		indexBuffer = VK_NULL_HANDLE;
 	}
-	//Function that creates a vertex buffe ron the graphics card that can be accessed by shaders, using vertex data in memory
+	//Function that creates a vertex buffer on the graphics card that can be accessed by shaders, using vertex data in memory
 	void Graphics::createVertexBuffer(std::vector<Vertex> _vertices, VkBuffer& _vertexBuffer, VkDeviceMemory& _vertexBufferMemory) {
 		
 		//getting size that the buffer should be

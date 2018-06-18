@@ -7,7 +7,6 @@ layout(location = 2) in float time;
 layout(binding = 1) uniform sampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;
-
 void main() {
 	
 	if (fragTexCoord.x >= 0.99) {
