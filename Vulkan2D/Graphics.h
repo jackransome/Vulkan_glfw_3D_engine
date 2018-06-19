@@ -30,9 +30,11 @@ struct model {
 	int size;
 };
 //Uniform buffer struct containing variables to pass to the vertex shader
-struct UniformBufferObject {
-	glm::vec3 position;
+struct UboStatic {
 	glm::vec3 cameraPos;
+};
+struct UboDynamic {
+	glm::vec3 *position = nullptr;
 };
 
 //Template for the Vertex struct used to hold vertex data that is draw by the GPU
@@ -169,8 +171,10 @@ private:
 
 	VkBuffer uniformStagingBuffer;
 	VkDeviceMemory uniformStagingBufferMemory;
-	VkBuffer uniformBuffer;
-	VkDeviceMemory uniformBufferMemory;
+	VkBuffer staticUniformBuffer;
+	VkDeviceMemory staticUniformBufferMemory;
+	VkBuffer dynamicUniformBuffer;
+	VkDeviceMemory dynamicUniformBufferMemory;
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
@@ -184,6 +188,10 @@ private:
 	VkDeviceMemory depthImageMemory;
 
 	VkImageView depthImageView;
+
+	int numberOfOBjects = 1000;
+
+	size_t dynamicAlignment;
 
 	int fpsDisplayTimer = 0;
 
