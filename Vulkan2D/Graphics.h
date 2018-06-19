@@ -24,12 +24,14 @@
 #include <glm/gtx/hash.hpp>
 
 #include "Vertex.h";
-
+//model struct
+struct model {
+	int offset;
+	int size;
+};
 //Uniform buffer struct containing variables to pass to the vertex shader
 struct UniformBufferObject {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
+	glm::vec3 position;
 	glm::vec3 cameraPos;
 };
 
@@ -183,7 +185,6 @@ private:
 
 	VkImageView depthImageView;
 
-
 	int fpsDisplayTimer = 0;
 
 	int fps;
@@ -194,7 +195,7 @@ private:
 
 	float time;
 
-	glm::vec2 cameraPosition;
+	glm::vec2 cameraPosition = { 0,0 };
 
 	//VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
 
@@ -254,7 +255,7 @@ private:
 
 	void createSemaphores();
 
-	void createCommandBuffers();
+	void createCommandBuffers(int indexCount, int firstIndex, int vertexOffset);
 
 	void createCommandPool();
 

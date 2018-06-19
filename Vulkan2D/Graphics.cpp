@@ -64,7 +64,7 @@
 		createUniformBuffer();
 		createDescriptorPool();
 		createDescriptorSet();
-		createCommandBuffers();
+		createCommandBuffers(indices.size(), 0, 0);
 		createSemaphores();
 	}
 	void Graphics::createDepthResources() {
@@ -386,7 +386,7 @@
 		descriptorWrites[0].dstSet = descriptorSet;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		descriptorWrites[0].descriptorCount = 1;
 		descriptorWrites[0].pBufferInfo = &bufferInfo;
 
@@ -497,7 +497,6 @@
 		if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate buffer memory!");
 		}
-
 		vkBindBufferMemory(device, buffer, bufferMemory, 0);
 	}
 	//Functions for manually cleaning up the vertex and index buffers and freeing up the memory used
@@ -598,7 +597,7 @@
 		createGraphicsPipeline();
 		createDepthResources();
 		createFramebuffers();
-		createCommandBuffers();
+		createCommandBuffers(indices.size(), 0, 0);
 	}
 	//Function for creating semaphores that are needed
 	void Graphics::createSemaphores() {
@@ -612,11 +611,10 @@
 		}
 	}
 	//allocates and records commands for every swapchain image
-	void Graphics::createCommandBuffers() {
+	void Graphics::createCommandBuffers(int indexCount, int firstIndex, int vertexOffset) {
 		if (commandBuffers.size() > 0) {
 			vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data());
 		}
-
 		commandBuffers.resize(swapChainFramebuffers.size());
 
 		VkCommandBufferAllocateInfo allocInfo = {};
@@ -657,17 +655,37 @@
 			//ADD MORE VERTEX BUFFERS HERE
 			VkBuffer vertexBuffers[] = { vertexBuffer };
 			VkDeviceSize offsets[] = { 0 };
-			std::vector<VkBuffer> test;
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
-			vkCmdDrawIndexed(commandBuffers[i], indices.size(), 1, 0, 0, 0);
+			cameraPosition = { 0,0 };
+			updateUniformBuffer();
+			vkCmdDrawIndexed(commandBuffers[i], indexCount/2, 1, firstIndex, vertexOffset, 0);
+			cameraPosition = { 0.5,0 };
+			updateUniformBuffer();
+			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+			vkCmdDrawIndexed(commandBuffers[i], indexCount / 2, 1, firstIndex + indexCount / 2, vertexOffset, 0);
 
 			vkCmdEndRenderPass(commandBuffers[i]);
+			/*
+			///
+			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+
+
+
+			vkCmdEndRenderPass(commandBuffers[i]);
+			*/
 			if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
 			}
@@ -942,11 +960,11 @@
 		float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 		UniformBufferObject ubo = {};
-		ubo.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
+		//ubo.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
 		//ubo.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
 		//ubo.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
 		ubo.cameraPos = glm::vec3(cameraPosition.x, cameraPosition.y, 0);
-		ubo.proj[1][1] *= -1;
+		//ubo.proj[1][1] *= -1;
 
 		void* data;
 		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(ubo), 0, &data);
@@ -1114,8 +1132,7 @@
 		clearIndexBuffer();
 		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
 		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
-		createCommandBuffers();
-
+		createCommandBuffers(indices.size(), 0, 0);
 		vertices.clear();
 		indices.clear();
 
@@ -1163,7 +1180,7 @@
 		//number of swapchains(should be 1 always)
 		presentInfo.swapchainCount = 1;
 
-		//the actualy swapchain being used
+		//the actual swapchain being used
 		presentInfo.pSwapchains = swapChains;
 
 		//the index of the image to be presented from the swapchain
