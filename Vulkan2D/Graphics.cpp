@@ -33,6 +33,7 @@
 		glfwSetWindowSizeCallback(window, Graphics::onWindowResized);
 	}
 
+
 	void Graphics::onWindowResized(GLFWwindow* window, int width, int height) {
 		if (width == 0 || height == 0) return;
 
@@ -66,6 +67,7 @@
 		createDescriptorSet();
 		createCommandBuffers(indices.size(), 0, 0);
 		createSemaphores();
+		updateUniformBuffer();
 	}
 	void Graphics::createDepthResources() {
 		VkFormat depthFormat = findDepthFormat();
@@ -437,15 +439,13 @@
 	void Graphics::createUniformBuffer() {
 		//STATIC
 		VkDeviceSize bufferSize = sizeof(UboStatic);
-		//uboDataDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, uniformStagingBufferMemory);
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, staticUniformStagingBufferMemory);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, staticUniformBuffer, staticUniformBufferMemory);
 		//DYNAMIC
 		// Calculate required alignment based on minimum device offset alignment
-		dynamicAlignment = sizeof(UboDynamic);
-		//VkDeviceSize bufferSize = sizeof(UboDataDynamic);
+		dynamicAlignment = 16;// sizeof(glm::vec3);
 		bufferSize = dynamicAlignment * numberOfOBjects;
-		//uboDataDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
+		uboDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, uniformStagingBufferMemory);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynamicUniformBuffer, dynamicUniformBufferMemory);
 	}
@@ -454,7 +454,7 @@
 		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
 		uboLayoutBinding.binding = 0;
 		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uboLayoutBinding.pImmutableSamplers = nullptr;
 		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
@@ -692,9 +692,9 @@
 			/*
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 			*/
-			for (uint32_t j = 0; j < 1; j++)
+			for (uint32_t j = 0; j < 2; j++)
 			{
-				// One dynamic offset per dynamic descriptor to offset into the ubo containing all model matrices
+				// One dynamic offset per dynamic descriptor to offset into the ubo
 				uint32_t dynamicOffset = j * static_cast<uint32_t>(dynamicAlignment);
 				// Bind the descriptor set for rendering a mesh using the dynamic offset
 				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 1, &dynamicOffset);
@@ -993,38 +993,73 @@
 		time = glfwGetTime();
 	}
 
+	void* Graphics::alignedAlloc(size_t size, size_t alignment){
+		void *data = nullptr;
+		#if defined(_MSC_VER) || defined(__MINGW32__)
+			data = _aligned_malloc(size, alignment);
+		#else 
+			int res = posix_memalign(&data, alignment, size);
+			if (res != 0)
+				data = nullptr;
+		#endif
+		return data;
+	}
+
+	void Graphics::alignedFree(void* data){
+		#if	defined(_MSC_VER) || defined(__MINGW32__)
+			_aligned_free(data);
+		#else 
+			free(data);
+		#endif
+	}
+
 	//updating the uniform buffer that is transfered to the graphics card every frame with the new camera properties
 	void Graphics::updateUniformBuffer() {
 		static auto startTime = std::chrono::high_resolution_clock::now();
 
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
-		UboStatic uboStatic;
-		UboDynamic uboDynamic;
-		uboStatic.cameraPos = glm::vec3(cameraPosition.x, cameraPosition.y, 0);
+		//UboStatic uboStatic;
+		//UboDynamic uboDynamic;
+		uboStatic.cameraPos = glm::vec3(cameraPosition.x + 0.5, cameraPosition.y + 0.5, 0);
 		//*uboDynamic.position = glm::vec3(0, 0, 0);
 		//glm::vec3* position = (glm::vec3*)((uint64_t)uboDynamic.position);;
 		//*position = glm::vec3(0, 0, 0);
-		*uboDynamic.position = glm::vec3(0, 0, 0);
+		/**uboDynamic.position*/
+		//glm::vec3 position = glm::vec3(0.5, 0.5, 0);
+		for (uint32_t i = 0; i < 3; i++) {
+			glm::vec3* position = (glm::vec3*)(((uint64_t)uboDynamic.position + (i * dynamicAlignment)));
+			*position = glm::vec3(0.5, 0.5*i + 0.5, 0);
+		}
+		glm::vec3 x = *(uboDynamic.position);
+		glm::vec3 x1 = *(glm::vec3*)(((uint64_t)uboDynamic.position + (1 * dynamicAlignment)));
 		/*
 		VkMappedMemoryRange memoryRange = vkTools::initializers::mappedMemoryRange();
 		memoryRange.memory = uniformBuffers.dynamic.memory;
 		memoryRange.size = sizeof(uboDataDynamic);
 		vkFlushMappedMemoryRanges(device, 1, &memoryRange);
 		*/
+		//static
 		void* data;
-		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(uboStatic), 0, &data);
+		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(UboStatic), 0, &data);
 		memcpy(data, &uboStatic, sizeof(UboStatic));
 		vkUnmapMemory(device, uniformStagingBufferMemory);
 		copyBuffer(uniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
-
-		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(dynamicAlignment*numberOfOBjects), 0, &data);
-		memcpy(data, &uboDynamic, sizeof(UboStatic));
+		//dynamic
+		void* data1;
+		vkMapMemory(device, uniformStagingBufferMemory, 0, dynamicAlignment, 0, &data1);
+		memcpy(data1, uboDynamic.position, dynamicAlignment*2);
 		vkUnmapMemory(device, uniformStagingBufferMemory);
-		copyBuffer(uniformStagingBuffer, dynamicUniformBuffer, sizeof(UboStatic));
-		
+		copyBuffer(uniformStagingBuffer, dynamicUniformBuffer, dynamicAlignment*2);
+
+		VkMappedMemoryRange memoryRange;// = vks::initializers::mappedMemoryRange();
+		memoryRange.memory = dynamicUniformBufferMemory;
+		memoryRange.size = sizeof(dynamicAlignment*numberOfOBjects);
+		vkFlushMappedMemoryRanges(device, 1, &memoryRange);
+
+		//11AA
 	}
-	//function for drawing a rectangle not affected my the matrices involved with 3D graphics, so it can just be srawns are a perfect flat rectangle to the screen
+	//function for drawing a rectangle not affected my the matrices involved with 3D graphics, so it can just be drawn as a perfect flat rectangle to the screen
 	void Graphics::drawRect(float x, float y, float width, float height, float r, float g, float b, float a) {
 		x /= swapChainExtent.width/2;
 		width /= swapChainExtent.width/2;
@@ -1215,10 +1250,10 @@
 		VkSemaphore signalSemaphores[] = { renderFinishedSemaphore };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
-
 		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
+		Vertex x = {};
 		//last step: submitting the result back to the swap chain so it is shown on the screen
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

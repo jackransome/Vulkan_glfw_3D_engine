@@ -29,13 +29,7 @@ struct model {
 	int offset;
 	int size;
 };
-//Uniform buffer struct containing variables to pass to the vertex shader
-struct UboStatic {
-	glm::vec3 cameraPos;
-};
-struct UboDynamic {
-	glm::vec3 *position = nullptr;
-};
+
 
 //Template for the Vertex struct used to hold vertex data that is draw by the GPU
 namespace std {
@@ -171,6 +165,8 @@ private:
 
 	VkBuffer uniformStagingBuffer;
 	VkDeviceMemory uniformStagingBufferMemory;
+	VkBuffer staticUniformStagingBuffer;
+	VkDeviceMemory staticUniformStagingBufferMemory;
 	VkBuffer staticUniformBuffer;
 	VkDeviceMemory staticUniformBufferMemory;
 	VkBuffer dynamicUniformBuffer;
@@ -189,7 +185,15 @@ private:
 
 	VkImageView depthImageView;
 
-	int numberOfOBjects = 1000;
+	//Uniform buffer struct containing variables to pass to the vertex shader
+	struct UboStatic {
+		glm::vec3 cameraPos;
+	} uboStatic;
+	struct UboDynamic {
+		glm::vec3 *position = nullptr;
+	} uboDynamic;
+
+	int numberOfOBjects = 5;
 
 	size_t dynamicAlignment;
 
@@ -208,6 +212,10 @@ private:
 	//VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
 
 	//void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
+
+	void* alignedAlloc(size_t size, size_t alignment);
+
+	void alignedFree(void* data);
 
 	static void onWindowResized(GLFWwindow* window, int width, int height);
 
