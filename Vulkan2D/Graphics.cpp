@@ -67,7 +67,10 @@
 		createDescriptorSet();
 		createCommandBuffers(indices.size(), 0, 0);
 		createSemaphores();
-		updateUniformBuffer();
+		updateStaticUniformBuffer();
+		updateDynamicUniformBuffer();
+		loadModels();
+		loadObjects();
 	}
 	void Graphics::createDepthResources() {
 		VkFormat depthFormat = findDepthFormat();
@@ -380,7 +383,7 @@
 		VkDescriptorBufferInfo dynamicBufferInfo = {};
 		dynamicBufferInfo.buffer = dynamicUniformBuffer;
 		dynamicBufferInfo.offset = 0;
-		dynamicBufferInfo.range = dynamicAlignment * numberOfOBjects;
+		dynamicBufferInfo.range = dynamicAlignment * maxNumberOfOBjects;
 
 		VkDescriptorImageInfo imageInfo = {};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -443,8 +446,8 @@
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, staticUniformBuffer, staticUniformBufferMemory);
 		//DYNAMIC
 		// Calculate required alignment based on minimum device offset alignment
-		dynamicAlignment = 16;// sizeof(glm::vec3);
-		bufferSize = dynamicAlignment * numberOfOBjects;
+		dynamicAlignment = 256;// sizeof(glm::vec3);
+		bufferSize = dynamicAlignment * maxNumberOfOBjects;
 		uboDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, uniformStagingBufferMemory);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynamicUniformBuffer, dynamicUniformBufferMemory);
@@ -689,44 +692,19 @@
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-			/*
-			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-			*/
-			for (uint32_t j = 0; j < 2; j++)
+
+			for (uint32_t j = 0; j < objects.size(); j++)
 			{
 				// One dynamic offset per dynamic descriptor to offset into the ubo
-				uint32_t dynamicOffset = j * static_cast<uint32_t>(dynamicAlignment);
+				uint32_t dynamicOffset =  j * static_cast<uint32_t>(dynamicAlignment);
 				// Bind the descriptor set for rendering a mesh using the dynamic offset
 				vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 1, &dynamicOffset);
 
-				vkCmdDrawIndexed(commandBuffers[i], indexCount, 1, 0, 0, 0);
+				vkCmdDrawIndexed(commandBuffers[i], objects[j].model->size, 1, objects[j].model->offset, 0, 0);
 			}
-			/*
-			cameraPosition = { 0,0 };
-			updateUniformBuffer();
-			vkCmdDrawIndexed(commandBuffers[i], indexCount/2, 1, firstIndex, vertexOffset, 0);
-			cameraPosition = { 0.5,0 };
-			updateUniformBuffer();
-			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-			vkCmdDrawIndexed(commandBuffers[i], indexCount / 2, 1, firstIndex + indexCount / 2, vertexOffset, 0);
-			*/
-			vkCmdEndRenderPass(commandBuffers[i]);
-			/*
-			///
-			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
-
-			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-
-
 
 			vkCmdEndRenderPass(commandBuffers[i]);
-			*/
+
 			if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
 			}
@@ -1014,50 +992,30 @@
 	}
 
 	//updating the uniform buffer that is transfered to the graphics card every frame with the new camera properties
-	void Graphics::updateUniformBuffer() {
+	void Graphics::updateStaticUniformBuffer() {
 		static auto startTime = std::chrono::high_resolution_clock::now();
 
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
-		//UboStatic uboStatic;
-		//UboDynamic uboDynamic;
 		uboStatic.cameraPos = glm::vec3(cameraPosition.x + 0.5, cameraPosition.y + 0.5, 0);
-		//*uboDynamic.position = glm::vec3(0, 0, 0);
-		//glm::vec3* position = (glm::vec3*)((uint64_t)uboDynamic.position);;
-		//*position = glm::vec3(0, 0, 0);
-		/**uboDynamic.position*/
-		//glm::vec3 position = glm::vec3(0.5, 0.5, 0);
-		for (uint32_t i = 0; i < 3; i++) {
-			glm::vec3* position = (glm::vec3*)(((uint64_t)uboDynamic.position + (i * dynamicAlignment)));
-			*position = glm::vec3(0.5, 0.5*i + 0.5, 0);
-		}
-		glm::vec3 x = *(uboDynamic.position);
-		glm::vec3 x1 = *(glm::vec3*)(((uint64_t)uboDynamic.position + (1 * dynamicAlignment)));
-		/*
-		VkMappedMemoryRange memoryRange = vkTools::initializers::mappedMemoryRange();
-		memoryRange.memory = uniformBuffers.dynamic.memory;
-		memoryRange.size = sizeof(uboDataDynamic);
-		vkFlushMappedMemoryRanges(device, 1, &memoryRange);
-		*/
-		//static
 		void* data;
 		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(UboStatic), 0, &data);
 		memcpy(data, &uboStatic, sizeof(UboStatic));
 		vkUnmapMemory(device, uniformStagingBufferMemory);
 		copyBuffer(uniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
+	}
+	void Graphics::updateDynamicUniformBuffer() {
+
+		for (uint32_t i = 0; i < objects.size(); i++) {
+			glm::vec3* position = (glm::vec3*)(((uint64_t)uboDynamic.position + (i * dynamicAlignment)));
+			*position = objects[i].position;
+		}
 		//dynamic
-		void* data1;
-		vkMapMemory(device, uniformStagingBufferMemory, 0, dynamicAlignment, 0, &data1);
-		memcpy(data1, uboDynamic.position, dynamicAlignment*2);
+		void* data;
+		vkMapMemory(device, uniformStagingBufferMemory, 0, dynamicAlignment*maxNumberOfOBjects, 0, &data);
+		memcpy(data, uboDynamic.position, dynamicAlignment*maxNumberOfOBjects);
 		vkUnmapMemory(device, uniformStagingBufferMemory);
-		copyBuffer(uniformStagingBuffer, dynamicUniformBuffer, dynamicAlignment*2);
-
-		VkMappedMemoryRange memoryRange;// = vks::initializers::mappedMemoryRange();
-		memoryRange.memory = dynamicUniformBufferMemory;
-		memoryRange.size = sizeof(dynamicAlignment*numberOfOBjects);
-		vkFlushMappedMemoryRanges(device, 1, &memoryRange);
-
-		//11AA
+		copyBuffer(uniformStagingBuffer, dynamicUniformBuffer, dynamicAlignment*maxNumberOfOBjects);
 	}
 	//function for drawing a rectangle not affected my the matrices involved with 3D graphics, so it can just be drawn as a perfect flat rectangle to the screen
 	void Graphics::drawRect(float x, float y, float width, float height, float r, float g, float b, float a) {
@@ -1127,6 +1085,32 @@
 			drawFlatImage(pos.x, pos.y, 33, 55, glm::vec2(38 + i * 33, 632), glm::vec2(38 + (i + 1) * 33, 632 + 55));
 		}
 	}
+	void Graphics::loadModels()
+	{
+		models.push_back(Model());
+		models[models.size() - 1].offset = 0;
+		models[models.size() - 1].size = 6*4;
+		models.push_back(Model());
+		models[models.size() - 1].offset = 6*4;
+		models[models.size() - 1].size =6*5;
+	}
+
+	void Graphics::loadObjects()
+	{
+		objects.push_back(Object());
+		objects[objects.size() - 1].model = &models[0];
+		objects[objects.size() - 1].position = glm::vec3(0,0,0);
+		objects.push_back(Object());
+		objects[objects.size() - 1].model = &models[0];
+		objects[objects.size() - 1].position = glm::vec3(0.5, 0.5, 0.5);
+		objects.push_back(Object());
+		objects[objects.size() - 1].model = &models[1];
+		objects[objects.size() - 1].position = glm::vec3(0.25, 0, 0);
+		objects.push_back(Object());
+		objects[objects.size() - 1].model = &models[1];
+		objects[objects.size() - 1].position = glm::vec3(0.75, 0.5, 0.5);
+	}
+
 	//function for getting the integer from a character, that is used to choose the rectangle where that character is located on the texture from.
 	int Graphics::getIntFromString(char letter[]) {
 		//cant use switch here as letter is not an enum or integer
@@ -1212,7 +1196,8 @@
 			throw;
 		}
 
-		updateUniformBuffer();
+		updateStaticUniformBuffer();
+		updateDynamicUniformBuffer();
 
 		clearVertexBuffer();
 		clearIndexBuffer();
@@ -1221,6 +1206,8 @@
 		createCommandBuffers(indices.size(), 0, 0);
 		vertices.clear();
 		indices.clear();
+
+
 
 		uint32_t imageIndex;
 

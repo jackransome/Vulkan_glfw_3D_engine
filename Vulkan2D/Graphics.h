@@ -25,9 +25,14 @@
 
 #include "Vertex.h";
 //model struct
-struct model {
+struct Model {
 	int offset;
 	int size;
+};
+//Object struct
+struct Object {
+	Model *model;
+	glm::vec3 position;
 };
 
 
@@ -122,7 +127,12 @@ public:
 
 	void drawCharacter(int i, glm::vec2 pos, bool upperCase);
 
+	void loadModels();
+
+	void loadObjects();
+
 	GLFWwindow* window;
+
 private:
 	
 
@@ -193,7 +203,11 @@ private:
 		glm::vec3 *position = nullptr;
 	} uboDynamic;
 
-	int numberOfOBjects = 5;
+	std::vector<Model> models;
+
+	std::vector<Object> objects;
+
+	int maxNumberOfOBjects = 250;
 
 	size_t dynamicAlignment;
 
@@ -283,7 +297,9 @@ private:
 
 	void createShaderModule(const std::vector<char>& code, VkShaderModule& shaderModule);
 
-	void updateUniformBuffer();
+	void updateStaticUniformBuffer();
+
+	void updateDynamicUniformBuffer();
 
 	int getIntFromString(char letter[]);
 
