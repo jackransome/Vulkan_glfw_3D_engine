@@ -3,10 +3,13 @@
 
 layout(binding = 0) uniform UniformBufferObject {
 	vec3 cameraPos;
+	mat4 model;
+    mat4 view;
+    mat4 proj;
 } ubo;
 layout(binding = 1) uniform DynamicUniformBufferObject {
     vec3 position;
-} dubo;
+} dynamicUbo;
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
@@ -22,8 +25,8 @@ out gl_PerVertex {
 };
 
 void main() {
-	gl_Position = vec4(inPosition.x + ubo.cameraPos.x + dubo.position.x, inPosition.y + ubo.cameraPos.y + dubo.position.y, inPosition.z + ubo.cameraPos.z + dubo.position.z, 1);
-	//vec4(inPosition.x, inPosition.y, inPosition.z, 1);//
+	gl_Position = vec4(inPosition + vec3(0.2, 0.2, 0.2) + ubo.cameraPos, 1.0);
+	//gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
 	fragColor = inColor;
 
 	fragTexCoord = inTexCoord;

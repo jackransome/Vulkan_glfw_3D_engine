@@ -127,9 +127,13 @@ public:
 
 	void drawCharacter(int i, glm::vec2 pos, bool upperCase);
 
+	void loadResources();
+
 	void loadModels();
 
 	void loadObjects();
+
+	void changeCameraPosition(float x, float y, float z);
 
 	GLFWwindow* window;
 
@@ -198,6 +202,9 @@ private:
 	//Uniform buffer struct containing variables to pass to the vertex shader
 	struct UboStatic {
 		glm::vec3 cameraPos;
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
 	} uboStatic;
 	struct UboDynamic {
 		glm::vec3 *position = nullptr;
@@ -221,11 +228,17 @@ private:
 
 	float time;
 
-	glm::vec2 cameraPosition = { 0,0 };
+	glm::vec3 cameraAngle = { 0,0,0 };
+
+	glm::vec3 cameraPosition = { 0,0,-10 };
+
+	float FOV = 90;
 
 	//VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
 
 	//void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
+
+	void loadModel(std::vector<Vertex>* _vertices, std::vector<uint32_t>* _indices, std::string path, glm::vec4 colour);
 
 	void* alignedAlloc(size_t size, size_t alignment);
 
@@ -285,7 +298,7 @@ private:
 
 	void createSemaphores();
 
-	void createCommandBuffers(int indexCount, int firstIndex, int vertexOffset);
+	void createCommandBuffers();
 
 	void createCommandPool();
 

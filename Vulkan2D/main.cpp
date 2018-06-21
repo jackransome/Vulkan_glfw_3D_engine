@@ -107,15 +107,19 @@ int main() {
 				}
 			}
 		}
-		graphics.drawRect(-500, 0, 10, 10, 1, 0, 0, 1);
-		graphics.drawRect(-485, 0, 10, 10, 1, 0, 0.5, 1);
-		graphics.drawRect(-470, 0, 10, 10, 1, 0, 1, 1);
-		graphics.drawRect(-455, 0, 10, 10, 0.5, 0, 1, 1);
-		graphics.drawRect(-440, 0, 10, 10, 0, 0, 1, 1);
-		graphics.drawRect(-425, 0, 10, 10, 0, 0.5, 1, 1);
-		graphics.drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
-		graphics.drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
-		graphics.drawRect(-380, 0, 10, 10, 0, 1, 0, 1);
+		if (input.keys.w) {
+			graphics.changeCameraPosition(0, 0.1, 0);
+		}
+		if (input.keys.a) {
+			graphics.changeCameraPosition(-0.1, 0, 0);
+		}
+		if (input.keys.s) {
+			graphics.changeCameraPosition(0, -0.1, 0);
+		}
+		if (input.keys.d) {
+			graphics.changeCameraPosition(0.1, 0, 0);
+		}
+		graphics.changeCameraPosition(0, 0, -0.05);
 		graphics.drawFrame();
 		graphics.handleTiming();
 	}

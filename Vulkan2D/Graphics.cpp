@@ -1,5 +1,9 @@
 #include "Graphics.h"
 #include "stb_image.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 //Creating the debug callback for getting the error when something goes wrong, for edbugging purposes
 //VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
 //	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
@@ -65,10 +69,11 @@
 		createUniformBuffer();
 		createDescriptorPool();
 		createDescriptorSet();
-		createCommandBuffers(indices.size(), 0, 0);
+		createCommandBuffers();
 		createSemaphores();
 		updateStaticUniformBuffer();
 		updateDynamicUniformBuffer();
+		loadResources();
 		loadModels();
 		loadObjects();
 	}
@@ -442,7 +447,7 @@
 	void Graphics::createUniformBuffer() {
 		//STATIC
 		VkDeviceSize bufferSize = sizeof(UboStatic);
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, staticUniformStagingBufferMemory);
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staticUniformStagingBuffer, staticUniformStagingBufferMemory);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, staticUniformBuffer, staticUniformBufferMemory);
 		//DYNAMIC
 		// Calculate required alignment based on minimum device offset alignment
@@ -631,7 +636,7 @@
 		createGraphicsPipeline();
 		createDepthResources();
 		createFramebuffers();
-		createCommandBuffers(indices.size(), 0, 0);
+		createCommandBuffers();
 	}
 	//Function for creating semaphores that are needed
 	void Graphics::createSemaphores() {
@@ -645,7 +650,7 @@
 		}
 	}
 	//allocates and records commands for every swapchain image
-	void Graphics::createCommandBuffers(int indexCount, int firstIndex, int vertexOffset) {
+	void Graphics::createCommandBuffers() {
 		if (commandBuffers.size() > 0) {
 			vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data());
 		}
@@ -907,8 +912,7 @@
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = setLayouts;
 
-		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
-			&pipelineLayout) != VK_SUCCESS) {
+		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
@@ -993,16 +997,54 @@
 
 	//updating the uniform buffer that is transfered to the graphics card every frame with the new camera properties
 	void Graphics::updateStaticUniformBuffer() {
+		/*
 		static auto startTime = std::chrono::high_resolution_clock::now();
 
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
+
+		glm::vec3 direction = glm::vec3(
+			cos(cameraAngle.y) * sin(cameraAngle.x),
+			sin(cameraAngle.y),
+			cos(cameraAngle.y) * cos(cameraAngle.x)
+		);
+		cameraAngle.x += 0.1;
+		cameraAngle.y += 0.1;
+		glm::vec3 right = glm::vec3(
+			sin(cameraAngle.x - 3.14f / 2.0f),
+			0,
+			cos(cameraAngle.x - 3.14f / 2.0f)
+		);
+
+		glm::vec3 up = glm::cross(right, direction);
+
+		uboStatic.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
+		uboStatic.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
+		uboStatic.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
+		uboStatic.proj[1][1] *= -1;
+		*/
+		static auto startTime = std::chrono::high_resolution_clock::now();
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+		uboStatic.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		uboStatic.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		uboStatic.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+		uboStatic.proj[1][1] *= -1;
+
 		uboStatic.cameraPos = glm::vec3(cameraPosition.x + 0.5, cameraPosition.y + 0.5, 0);
+		
 		void* data;
-		vkMapMemory(device, uniformStagingBufferMemory, 0, sizeof(UboStatic), 0, &data);
+		vkMapMemory(device, staticUniformStagingBufferMemory, 0, sizeof(UboStatic), 0, &data);
 		memcpy(data, &uboStatic, sizeof(UboStatic));
-		vkUnmapMemory(device, uniformStagingBufferMemory);
-		copyBuffer(uniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
+		vkUnmapMemory(device, staticUniformStagingBufferMemory);
+		copyBuffer(staticUniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
+		/*
+		void* data;
+		vkMapMemory(device, staticUniformBufferMemory, 0, sizeof(UboStatic), 0, &data);
+		memcpy(data, &uboStatic, sizeof(UboStatic));
+		vkUnmapMemory(device, staticUniformBufferMemory);*/
 	}
 	void Graphics::updateDynamicUniformBuffer() {
 
@@ -1085,6 +1127,22 @@
 			drawFlatImage(pos.x, pos.y, 33, 55, glm::vec2(38 + i * 33, 632), glm::vec2(38 + (i + 1) * 33, 632 + 55));
 		}
 	}
+	void Graphics::loadResources()
+	{
+		/*drawRect(-500, 0, 10, 10, 1, 0, 0, 1);
+		drawRect(-485, 0, 10, 10, 1, 0, 0.5, 1);
+		drawRect(-470, 0, 10, 10, 1, 0, 1, 1);
+		drawRect(-455, 0, 10, 10, 0.5, 0, 1, 1);
+		drawRect(-440, 0, 10, 10, 0, 0, 1, 1);
+		drawRect(-425, 0, 10, 10, 0, 0.5, 1, 1);
+		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
+		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
+		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
+		loadModel(&vertices, &indices, "models/box.obj", glm::vec4(0.1, 0.9, 0.1, 1));
+		loadModel(&vertices, &indices, "models/inverter.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
+		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
+	}
 	void Graphics::loadModels()
 	{
 		models.push_back(Model());
@@ -1092,7 +1150,7 @@
 		models[models.size() - 1].size = 6*4;
 		models.push_back(Model());
 		models[models.size() - 1].offset = 6*4;
-		models[models.size() - 1].size =6*5;
+		models[models.size() - 1].size =6*4;
 	}
 
 	void Graphics::loadObjects()
@@ -1110,10 +1168,56 @@
 		objects[objects.size() - 1].model = &models[1];
 		objects[objects.size() - 1].position = glm::vec3(0.75, 0.5, 0.5);
 	}
+	void Graphics::changeCameraPosition(float x, float y, float z)
+	{
+		cameraPosition += glm::vec3(x, y, z);
+	}
+	void Graphics::loadModel(std::vector<Vertex>* _vertices, std::vector<uint32_t>* _indices, std::string path, glm::vec4 colour) {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string err;
 
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str())) {
+			throw std::runtime_error(err);
+		}
+
+		std::unordered_map<Vertex, int> uniqueVertices = {};
+
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				Vertex vertex = {};
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+				};
+
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
+				};
+
+				vertex.texCoord = { 1,0 };// {attrib.texcoords[2 * index.texcoord_index + 0],1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+
+				vertex.colour = { colour.r, colour.g, colour.b, colour.a };// { colour.r - 0.2 + 0.4*((double)rand() / (RAND_MAX)), colour.g - 0.2 + 0.4*((double)rand() / (RAND_MAX)), colour.b - 0.2 + 0.4*((double)rand() / (RAND_MAX)) };
+
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = _vertices->size();
+					_vertices->push_back(vertex);
+				}
+
+				_indices->push_back(uniqueVertices[vertex]);
+			}
+		}
+
+	}
 	//function for getting the integer from a character, that is used to choose the rectangle where that character is located on the texture from.
 	int Graphics::getIntFromString(char letter[]) {
 		//cant use switch here as letter is not an enum or integer
+		return (int)letter[0]-65;
 		if (letter[0] == "a"[0]) { return 0; }
 		else if (letter[0] == "b"[0]) { return 1; }
 		else if (letter[0] == "c"[0]) { return 2; }
@@ -1199,13 +1303,7 @@
 		updateStaticUniformBuffer();
 		updateDynamicUniformBuffer();
 
-		clearVertexBuffer();
-		clearIndexBuffer();
-		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
-		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
-		createCommandBuffers(indices.size(), 0, 0);
-		vertices.clear();
-		indices.clear();
+		createCommandBuffers();
 
 
 
