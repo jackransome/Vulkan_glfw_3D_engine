@@ -399,7 +399,7 @@
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = descriptorSet;
-		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstBinding = 1;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
@@ -407,7 +407,7 @@
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = descriptorSet;
-		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstBinding = 0;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		descriptorWrites[1].descriptorCount = 1;
@@ -460,14 +460,14 @@
 
 	void Graphics::createDescriptorSetLayout() {
 		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-		uboLayoutBinding.binding = 0;
+		uboLayoutBinding.binding = 1;
 		uboLayoutBinding.descriptorCount = 1;
 		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uboLayoutBinding.pImmutableSamplers = nullptr;
 		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 		VkDescriptorSetLayoutBinding dynamicUboLayoutBinding = {};
-		uboLayoutBinding.binding = 1;
+		uboLayoutBinding.binding = 0;
 		uboLayoutBinding.descriptorCount = 1;
 		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		uboLayoutBinding.pImmutableSamplers = nullptr;
@@ -997,32 +997,6 @@
 
 	//updating the uniform buffer that is transfered to the graphics card every frame with the new camera properties
 	void Graphics::updateStaticUniformBuffer() {
-		/*
-		static auto startTime = std::chrono::high_resolution_clock::now();
-
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
-
-		glm::vec3 direction = glm::vec3(
-			cos(cameraAngle.y) * sin(cameraAngle.x),
-			sin(cameraAngle.y),
-			cos(cameraAngle.y) * cos(cameraAngle.x)
-		);
-		cameraAngle.x += 0.1;
-		cameraAngle.y += 0.1;
-		glm::vec3 right = glm::vec3(
-			sin(cameraAngle.x - 3.14f / 2.0f),
-			0,
-			cos(cameraAngle.x - 3.14f / 2.0f)
-		);
-
-		glm::vec3 up = glm::cross(right, direction);
-
-		uboStatic.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
-		uboStatic.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
-		uboStatic.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
-		uboStatic.proj[1][1] *= -1;
-		*/
 		static auto startTime = std::chrono::high_resolution_clock::now();
 
 		auto currentTime = std::chrono::high_resolution_clock::now();
@@ -1040,11 +1014,6 @@
 		memcpy(data, &uboStatic, sizeof(UboStatic));
 		vkUnmapMemory(device, staticUniformStagingBufferMemory);
 		copyBuffer(staticUniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
-		/*
-		void* data;
-		vkMapMemory(device, staticUniformBufferMemory, 0, sizeof(UboStatic), 0, &data);
-		memcpy(data, &uboStatic, sizeof(UboStatic));
-		vkUnmapMemory(device, staticUniformBufferMemory);*/
 	}
 	void Graphics::updateDynamicUniformBuffer() {
 
@@ -1138,7 +1107,7 @@
 		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
 		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
 		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
-		loadModel(&vertices, &indices, "models/box.obj", glm::vec4(0.1, 0.9, 0.1, 1));
+		loadModel(&vertices, &indices, "models/inverter.obj", glm::vec4(0.1, 0.9, 0.1, 1));
 		loadModel(&vertices, &indices, "models/inverter.obj", glm::vec4(0.9, 0.1, 0.1, 1));
 		createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory);
 		createIndexBuffer(indices, indexBuffer, indexBufferMemory);
