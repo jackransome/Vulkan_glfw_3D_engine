@@ -201,7 +201,6 @@ private:
 
 	//Uniform buffer struct containing variables to pass to the vertex shader
 	struct UboStatic {
-		glm::vec3 cameraPos;
 		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 proj;

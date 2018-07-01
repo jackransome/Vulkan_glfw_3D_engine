@@ -1,6 +1,5 @@
 #include "Graphics.h"
 #include "stb_image.h"
-
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
@@ -72,7 +71,7 @@
 		createCommandBuffers();
 		createSemaphores();
 		updateStaticUniformBuffer();
-		updateDynamicUniformBuffer();
+		//updateDynamicUniformBuffer();
 		loadResources();
 		loadModels();
 		loadObjects();
@@ -395,31 +394,31 @@
 		imageInfo.imageView = textureImageView;
 		imageInfo.sampler = textureSampler;
 
-		std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
+		std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = descriptorSet;
-		descriptorWrites[0].dstBinding = 1;
+		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
 		descriptorWrites[0].pBufferInfo = &staticBufferInfo;
 
+		//descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		//descriptorWrites[1].dstSet = descriptorSet;
+		//descriptorWrites[1].dstBinding = 1;
+		//descriptorWrites[1].dstArrayElement = 0;
+		//descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		//descriptorWrites[1].descriptorCount = 1;
+		//descriptorWrites[1].pBufferInfo = &dynamicBufferInfo;
+
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = descriptorSet;
-		descriptorWrites[1].dstBinding = 0;
+		descriptorWrites[1].dstBinding = 2;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pBufferInfo = &dynamicBufferInfo;
-
-		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = descriptorSet;
-		descriptorWrites[2].dstBinding = 2;
-		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &imageInfo;
+		descriptorWrites[1].pImageInfo = &imageInfo;
 
 		vkUpdateDescriptorSets(device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 	}
@@ -428,10 +427,10 @@
 		std::array<VkDescriptorPoolSize, 3> poolSizes = {};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = 1;
-		poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		//poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		//poolSizes[1].descriptorCount = 1;
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		poolSizes[1].descriptorCount = 1;
-		poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[2].descriptorCount = 1;
 
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -451,27 +450,27 @@
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, staticUniformBuffer, staticUniformBufferMemory);
 		//DYNAMIC
 		// Calculate required alignment based on minimum device offset alignment
-		dynamicAlignment = 256;// sizeof(glm::vec3);
-		bufferSize = dynamicAlignment * maxNumberOfOBjects;
-		uboDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, uniformStagingBufferMemory);
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynamicUniformBuffer, dynamicUniformBufferMemory);
+		//dynamicAlignment = 256;// sizeof(glm::vec3);
+		//bufferSize = dynamicAlignment * maxNumberOfOBjects;
+		//uboDynamic.position = (glm::vec3*)alignedAlloc(bufferSize, dynamicAlignment);
+		//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformStagingBuffer, uniformStagingBufferMemory);
+		//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, dynamicUniformBuffer, dynamicUniformBufferMemory);
 	}
 
 	void Graphics::createDescriptorSetLayout() {
 		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-		uboLayoutBinding.binding = 1;
+		uboLayoutBinding.binding = 0;
 		uboLayoutBinding.descriptorCount = 1;
 		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uboLayoutBinding.pImmutableSamplers = nullptr;
 		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-		VkDescriptorSetLayoutBinding dynamicUboLayoutBinding = {};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-		uboLayoutBinding.pImmutableSamplers = nullptr;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		//VkDescriptorSetLayoutBinding dynamicUboLayoutBinding = {};
+		//uboLayoutBinding.binding = 1;
+		//uboLayoutBinding.descriptorCount = 1;
+		//uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		//uboLayoutBinding.pImmutableSamplers = nullptr;
+		//uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 		VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
 		samplerLayoutBinding.binding = 2;
@@ -480,7 +479,7 @@
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, dynamicUboLayoutBinding, samplerLayoutBinding };
+		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, /*dynamicUboLayoutBinding,*/ samplerLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = bindings.size();
@@ -1007,7 +1006,7 @@
 		uboStatic.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 		uboStatic.proj[1][1] *= -1;
 
-		uboStatic.cameraPos = glm::vec3(cameraPosition.x + 0.5, cameraPosition.y + 0.5, 0);
+		//uboStatic.cameraPos = glm::vec3(cameraPosition.x + 0.5, cameraPosition.y + 0.5, 0);
 		
 		void* data;
 		vkMapMemory(device, staticUniformStagingBufferMemory, 0, sizeof(UboStatic), 0, &data);
@@ -1016,12 +1015,10 @@
 		copyBuffer(staticUniformStagingBuffer, staticUniformBuffer, sizeof(UboStatic));
 	}
 	void Graphics::updateDynamicUniformBuffer() {
-
 		for (uint32_t i = 0; i < objects.size(); i++) {
 			glm::vec3* position = (glm::vec3*)(((uint64_t)uboDynamic.position + (i * dynamicAlignment)));
 			*position = objects[i].position;
 		}
-		//dynamic
 		void* data;
 		vkMapMemory(device, uniformStagingBufferMemory, 0, dynamicAlignment*maxNumberOfOBjects, 0, &data);
 		memcpy(data, uboDynamic.position, dynamicAlignment*maxNumberOfOBjects);
@@ -1046,6 +1043,7 @@
 		vertices.push_back(temp);
 		temp.pos = glm::vec3(x + width, y, 0);
 		vertices.push_back(temp);
+
 		indices.push_back(vertices.size() - 4);
 		indices.push_back(vertices.size() - 3);
 		indices.push_back(vertices.size() - 2);
@@ -1270,7 +1268,7 @@
 		}
 
 		updateStaticUniformBuffer();
-		updateDynamicUniformBuffer();
+		//updateDynamicUniformBuffer();
 
 		createCommandBuffers();
 
