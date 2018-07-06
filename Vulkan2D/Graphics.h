@@ -24,6 +24,16 @@
 #include <cstring>
 #include <cstdlib>
 
+//model struct
+struct Model {
+	int offset;
+	int size;
+};
+//Object struct
+struct Object {
+	Model *model;
+	glm::vec3 position;
+};
 
 struct UniformBufferObject {
 	glm::mat4 model;
@@ -33,7 +43,8 @@ struct UniformBufferObject {
 
 struct Vertex {
 	glm::vec3 pos;
-	glm::vec3 color;
+	glm::vec4 color;
+	glm::vec3 normal;
 	glm::vec2 texCoord;
 
 	static VkVertexInputBindingDescription getBindingDescription() {
@@ -45,8 +56,8 @@ struct Vertex {
 		return bindingDescription;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions = {};
+	static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
+		std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions = {};
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
@@ -60,8 +71,13 @@ struct Vertex {
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+		attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[2].offset = offsetof(Vertex, normal);
+
+		attributeDescriptions[3].binding = 0;
+		attributeDescriptions[3].location = 3;
+		attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[3].offset = offsetof(Vertex, texCoord);
 
 		return attributeDescriptions;
 	}
@@ -120,8 +136,12 @@ public:
 
 private:
 
-	const int WIDTH = 800;
-	const int HEIGHT = 600;
+	std::vector<Model> models;
+
+	std::vector<Object> objects;
+
+	const int WIDTH = 80;
+	const int HEIGHT = 60;
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
 	GLFWwindow* window;
@@ -167,6 +187,9 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+	VkBuffer storageBuffer;
+	VkDeviceMemory storageBufferMemory;
+
 	std::vector<VkBuffer> uniformBuffers;
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
 
@@ -181,6 +204,10 @@ private:
 	size_t currentFrame = 0;
 
 	bool framebufferResized = false;
+
+	void loadResources();
+
+	void loadModels();
 
 	VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
 		auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
@@ -261,11 +288,13 @@ private:
 
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
-	void loadModel();
+	void loadModel(std::string path, glm::vec4 colour);
 
 	void createVertexBuffer();
 
 	void createIndexBuffer();
+
+	void createStorageBuffer();
 
 	void createUniformBuffers();
 

@@ -45,9 +45,11 @@
 		createTextureImage();
 		createTextureImageView();
 		createTextureSampler();
-		loadModel();
+		loadResources();
+		loadModels();
 		createVertexBuffer();
 		createIndexBuffer();
+		//createStorageBuffer();
 		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSets();
@@ -407,7 +409,14 @@
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+		VkDescriptorSetLayoutBinding ssboLayoutBinding = {};
+		ssboLayoutBinding.binding = 2;
+		ssboLayoutBinding.descriptorCount = 1;
+		ssboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		ssboLayoutBinding.pImmutableSamplers = nullptr;
+		ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding, /*ssboLayoutBinding*/ };
 		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -517,9 +526,18 @@
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
+		VkPushConstantRange pushConstantRange = {};
+		pushConstantRange.offset = 0;
+		pushConstantRange.size = sizeof(int) * 1;
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+		pipelineLayoutInfo.pushConstantRangeCount = 1;
+
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
+
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {};
 		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -911,44 +929,50 @@
 		endSingleTimeCommands(commandBuffer);
 	}
 
-	void Graphics::loadModel() {
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string err;
+	void Graphics::loadModel(std::string path, glm::vec4 colour) {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string err;
 
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, MODEL_PATH.c_str())) {
-			throw std::runtime_error(err);
-		}
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str())) {
+            throw std::runtime_error(err);
+        }
 
-		std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
+        std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
 
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex = {};
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Vertex vertex = {};
 
-				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
 				};
 
-				vertex.texCoord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
 
-				vertex.color = { 1.0f, 1.0f, 1.0f };
+                vertex.color = {1.0f, 1.0f, 1.0f, 1};
 
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-					vertices.push_back(vertex);
-				}
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                    vertices.push_back(vertex);
+                }
 
-				indices.push_back(uniqueVertices[vertex]);
-			}
-		}
-	}
+                indices.push_back(uniqueVertices[vertex]);
+            }
+        }
+    }
 
 	void Graphics::createVertexBuffer() {
 		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
@@ -990,6 +1014,32 @@
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
 	}
 
+	void Graphics::createStorageBuffer() {
+		std::vector<int> objects;
+		objects.push_back(1);
+		objects.push_back(2);
+		objects.push_back(3);
+		objects.push_back(4);
+		objects.push_back(5);
+		VkDeviceSize bufferSize = sizeof(objects[0]) * objects.size();
+
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, objects.data(), (size_t)bufferSize);
+		vkUnmapMemory(device, stagingBufferMemory);
+
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
+
+		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
+
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
 	void Graphics::createUniformBuffers() {
 		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -1007,6 +1057,8 @@
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+		//poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		//poolSizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1038,6 +1090,11 @@
 			bufferInfo.offset = 0;
 			bufferInfo.range = sizeof(UniformBufferObject);
 
+			VkDescriptorBufferInfo ssboInfo = {};
+			bufferInfo.buffer = storageBuffer;
+			bufferInfo.offset = 0;
+			bufferInfo.range = sizeof(int)*5;
+
 			VkDescriptorImageInfo imageInfo = {};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = textureImageView;
@@ -1060,6 +1117,14 @@
 			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[1].descriptorCount = 1;
 			descriptorWrites[1].pImageInfo = &imageInfo;
+
+			//descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			//descriptorWrites[2].dstSet = descriptorSets[i];
+			//descriptorWrites[2].dstBinding = 2;
+			//descriptorWrites[2].dstArrayElement = 0;
+			//descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			//descriptorWrites[2].descriptorCount = 1;
+			//descriptorWrites[2].pBufferInfo = &ssboInfo;
 
 			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
@@ -1191,6 +1256,15 @@
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
+			//push constant for object index
+			int x = 1;
+			vkCmdPushConstants(
+				commandBuffers[i],
+				pipelineLayout,
+				VK_SHADER_STAGE_VERTEX_BIT,
+				0,
+				sizeof(int) * 1,
+				(void*)&x);
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
@@ -1519,4 +1593,31 @@
 		std::cerr << "validation layer: " << msg << std::endl;
 
 		return VK_FALSE;
+	}
+
+	void Graphics::loadResources()
+	{
+		/*drawRect(-500, 0, 10, 10, 1, 0, 0, 1);
+		drawRect(-485, 0, 10, 10, 1, 0, 0.5, 1);
+		drawRect(-470, 0, 10, 10, 1, 0, 1, 1);
+		drawRect(-455, 0, 10, 10, 0.5, 0, 1, 1);
+		drawRect(-440, 0, 10, 10, 0, 0, 1, 1);
+		drawRect(-425, 0, 10, 10, 0, 0.5, 1, 1);
+		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
+		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
+		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
+		loadModel("models/inverter.obj", glm::vec4(0.1, 0.9, 0.1, 1));
+		//loadModel(MODEL_PATH, glm::vec4(0.1, 0.9, 0.1, 1));
+		//loadModel(&vertices, &indices, "models/inverter.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		//createVertexBuffer();
+		//createIndexBuffer();
+	}
+	void Graphics::loadModels()
+	{
+		models.push_back(Model());
+		models[models.size() - 1].offset = 0;
+		models[models.size() - 1].size = 6 * 4;
+		models.push_back(Model());
+		models[models.size() - 1].offset = 6 * 4;
+		models[models.size() - 1].size = 6 * 4;
 	}
