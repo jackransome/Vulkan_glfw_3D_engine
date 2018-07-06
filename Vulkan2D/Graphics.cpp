@@ -410,7 +410,7 @@
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pBufferInfo = &dynamicBufferInfo;
+		//descriptorWrites[1].pBufferInfo = &dynamicBufferInfo;
 
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[2].dstSet = descriptorSet;
