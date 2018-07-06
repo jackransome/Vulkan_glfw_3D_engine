@@ -127,24 +127,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BloodParticle.cpp" />
-    <ClCompile Include="CollisionDetection.cpp" />
-    <ClCompile Include="Graphics.cpp" />
-    <ClCompile Include="Input.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Platform.cpp" />
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="SpriteSheet.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="BloodParticle.h" />
-    <ClInclude Include="BoundingBox.h" />
-    <ClInclude Include="CollisionDetection.h" />
-    <ClInclude Include="Graphics.h" />
-    <ClInclude Include="Input.h" />
-    <ClInclude Include="Platform.h" />
-    <ClInclude Include="Player.h" />
-    <ClInclude Include="SpriteSheet.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="Vertex.h" />
@@ -152,6 +134,9 @@
   <ItemGroup>
     <None Include="shaders\shader.frag" />
     <None Include="shaders\shader.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
