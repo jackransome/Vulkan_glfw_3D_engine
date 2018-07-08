@@ -32,13 +32,14 @@ struct Model {
 //Object struct
 struct Object {
 	Model *model;
-	glm::vec3 position;
+	glm::mat4 transformData;
 };
 
 struct UniformBufferObject {
-	glm::mat4 model;
+	//glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec3 cameraPos;
 };
 
 struct Vertex {
@@ -132,7 +133,20 @@ const bool enableValidationLayers = true;
 
 class Graphics {
 public:
+
+	bool shouldClose = false;
+
+	void init();
+
 	void run();
+
+	void cleanup();
+
+	void changeCameraPos(float x, float y, float z);
+
+	void setCameraAngle(glm::vec3 cameraAngle);
+
+	GLFWwindow* getWindowPointer();
 
 private:
 
@@ -140,9 +154,25 @@ private:
 
 	std::vector<Object> objects;
 
-	const int WIDTH = 80;
-	const int HEIGHT = 60;
+	const int MAX_OBJECTS = 500;
+
+	const int WIDTH = 800;
+	const int HEIGHT = 600;
 	const int MAX_FRAMES_IN_FLIGHT = 2;
+
+	glm::vec3 cameraAngle;
+
+	glm::vec3 cameraPosition;
+
+	float FOV = 90;
+
+	glm::vec3 direction;
+
+	glm::vec3 right;
+
+	glm::vec3 up;
+
+	float cameraVelocity = 0.5;
 
 	GLFWwindow* window;
 
@@ -209,6 +239,10 @@ private:
 
 	void loadModels();
 
+	void loadObjects();
+
+	void setUpCamera();
+
 	VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
 		auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
 		if (func != nullptr) {
@@ -235,8 +269,6 @@ private:
 	void mainLoop();
 
 	void cleanupSwapChain();
-
-	void cleanup();
 
 	void recreateSwapChain();
 

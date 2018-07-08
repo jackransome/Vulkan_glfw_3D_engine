@@ -6,11 +6,9 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
-	void Graphics::run() {
+	void Graphics::init() {
 		initWindow();
 		initVulkan();
-		mainLoop();
-		cleanup();
 	}
 
 	void Graphics::initWindow() {
@@ -47,20 +45,24 @@
 		createTextureSampler();
 		loadResources();
 		loadModels();
+		loadObjects();
 		createVertexBuffer();
 		createIndexBuffer();
-		//createStorageBuffer();
+		createStorageBuffer();
 		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSets();
 		createCommandBuffers();
 		createSyncObjects();
+		setUpCamera();
 	}
 
-	void Graphics::mainLoop() {
-		while (!glfwWindowShouldClose(window)) {
+	void Graphics::run() {
+		if (!glfwWindowShouldClose(window)) {
 			glfwPollEvents();
 			drawFrame();
+		} else {
+			shouldClose = true;
 		}
 
 		vkDeviceWaitIdle(device);
@@ -416,7 +418,7 @@
 		ssboLayoutBinding.pImmutableSamplers = nullptr;
 		ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding, /*ssboLayoutBinding*/ };
+		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, ssboLayoutBinding};
 		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -962,7 +964,7 @@
                     1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
                 };
 
-                vertex.color = {1.0f, 1.0f, 1.0f, 1};
+				vertex.color = colour;// {1.0f, 1.0f, 1.0f, 1};
 
                 if (uniqueVertices.count(vertex) == 0) {
                     uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -1015,13 +1017,13 @@
 	}
 
 	void Graphics::createStorageBuffer() {
-		std::vector<int> objects;
-		objects.push_back(1);
-		objects.push_back(2);
-		objects.push_back(3);
-		objects.push_back(4);
-		objects.push_back(5);
-		VkDeviceSize bufferSize = sizeof(objects[0]) * objects.size();
+		
+		std::vector<glm::mat4> storageBufferData;
+		for (int i = 0; i < objects.size(); i++) {
+			storageBufferData.push_back(objects[i].transformData);
+		}
+		
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;// storageBufferData.size();
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -1029,7 +1031,7 @@
 
 		void* data;
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, objects.data(), (size_t)bufferSize);
+		memcpy(data, storageBufferData.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
 
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
@@ -1052,13 +1054,13 @@
 	}
 
 	void Graphics::createDescriptorPool() {
-		std::array<VkDescriptorPoolSize, 2> poolSizes = {};
+		std::array<VkDescriptorPoolSize, 3> poolSizes = {};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
-		//poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		//poolSizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		poolSizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1091,40 +1093,40 @@
 			bufferInfo.range = sizeof(UniformBufferObject);
 
 			VkDescriptorBufferInfo ssboInfo = {};
-			bufferInfo.buffer = storageBuffer;
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(int)*5;
+			ssboInfo.buffer = storageBuffer;
+			ssboInfo.offset = 0;
+			ssboInfo.range = sizeof(glm::mat4)*MAX_OBJECTS;
 
 			VkDescriptorImageInfo imageInfo = {};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = textureImageView;
 			imageInfo.sampler = textureSampler;
 
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
+            std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
 
-			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[0].dstSet = descriptorSets[i];
-			descriptorWrites[0].dstBinding = 0;
-			descriptorWrites[0].dstArrayElement = 0;
-			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptorWrites[0].descriptorCount = 1;
-			descriptorWrites[0].pBufferInfo = &bufferInfo;
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = descriptorSets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[1].dstSet = descriptorSets[i];
-			descriptorWrites[1].dstBinding = 1;
-			descriptorWrites[1].dstArrayElement = 0;
-			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrites[1].descriptorCount = 1;
-			descriptorWrites[1].pImageInfo = &imageInfo;
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = descriptorSets[i];
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo = &imageInfo;
 
-			//descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			//descriptorWrites[2].dstSet = descriptorSets[i];
-			//descriptorWrites[2].dstBinding = 2;
-			//descriptorWrites[2].dstArrayElement = 0;
-			//descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			//descriptorWrites[2].descriptorCount = 1;
-			//descriptorWrites[2].pBufferInfo = &ssboInfo;
+			descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[2].dstSet = descriptorSets[i];
+			descriptorWrites[2].dstBinding = 2;
+			descriptorWrites[2].dstArrayElement = 0;
+			descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			descriptorWrites[2].descriptorCount = 1;
+			descriptorWrites[2].pBufferInfo = &ssboInfo;
 
 			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}
@@ -1256,20 +1258,16 @@
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-			//push constant for object index
-			int x = 1;
-			vkCmdPushConstants(
-				commandBuffers[i],
-				pipelineLayout,
-				VK_SHADER_STAGE_VERTEX_BIT,
-				0,
-				sizeof(int) * 1,
-				(void*)&x);
+
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
-
-			vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+			for (int j = 0; j < objects.size(); j++) {
+				//push constant for object index
+				vkCmdPushConstants(commandBuffers[i], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&j);
+				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(objects[j].model->size), 1, static_cast<uint32_t>(objects[j].model->offset), 0, 0);
+			}
+			
 
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1301,16 +1299,37 @@
 	}
 
 	void Graphics::updateUniformBuffer(uint32_t currentImage) {
-		static auto startTime = std::chrono::high_resolution_clock::now();
 
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		direction = glm::vec3(
+			cos(cameraAngle.y) * sin(cameraAngle.x),
+			sin(cameraAngle.y),
+			cos(cameraAngle.y) * cos(cameraAngle.x)
+		);
+
+		right = glm::vec3(
+			sin(cameraAngle.x - 3.14f / 2.0f),
+			0,
+			cos(cameraAngle.x - 3.14f / 2.0f)
+		);
+
+		up = glm::cross(right, direction);
 
 		UniformBufferObject ubo = {};
-		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+		//ubo.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
+		ubo.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
+		ubo.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
 		ubo.proj[1][1] *= -1;
+		ubo.cameraPos = cameraPosition;
+		//static auto startTime = std::chrono::high_resolution_clock::now();
+
+		//auto currentTime = std::chrono::high_resolution_clock::now();
+		//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+		//UniformBufferObject ubo = {};
+		//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+		//ubo.proj[1][1] *= -1;
 
 		void* data;
 		vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
@@ -1606,9 +1625,8 @@
 		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
 		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
 		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
-		loadModel("models/inverter.obj", glm::vec4(0.1, 0.9, 0.1, 1));
-		//loadModel(MODEL_PATH, glm::vec4(0.1, 0.9, 0.1, 1));
-		//loadModel(&vertices, &indices, "models/inverter.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		loadModel("models/box.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		//loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1));
 		//createVertexBuffer();
 		//createIndexBuffer();
 	}
@@ -1616,8 +1634,46 @@
 	{
 		models.push_back(Model());
 		models[models.size() - 1].offset = 0;
-		models[models.size() - 1].size = 6 * 4;
+		models[models.size() - 1].size = 36;
 		models.push_back(Model());
-		models[models.size() - 1].offset = 6 * 4;
-		models[models.size() - 1].size = 6 * 4;
+		models[models.size() - 1].offset = 36;
+		models[models.size() - 1].size = 34+576;
+	}
+
+	void Graphics::loadObjects() {
+		objects.push_back(Object());
+		objects[0].model = &models[0];
+		objects[0].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(1, 0.1, 0));
+		objects.push_back(Object());
+		objects[1].model = &models[0];
+		objects[1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(3, 0.1, 0));
+		objects.push_back(Object());
+		objects[2].model = &models[0];
+		objects[2].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(5, 0.1, 0));
+		objects.push_back(Object());
+		objects[3].model = &models[0];
+		objects[3].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(7, 0.1, 0));
+		objects.push_back(Object());
+		objects[4].model = &models[0];
+		objects[4].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(9, 0.1, 0));
+	}
+
+	void Graphics::setUpCamera() {
+		cameraAngle = glm::vec3(1, 1, 1);
+		cameraPosition = glm::vec3(0, 0, 0);
+	}
+
+	void Graphics::changeCameraPos(float x, float y, float z) {
+		glm::vec3 forward = glm::vec3(sin(cameraAngle.x), 0, cos(cameraAngle.x));
+		cameraPosition += x * right * cameraVelocity;
+		cameraPosition.y += y * cameraVelocity;
+		cameraPosition += z * forward * cameraVelocity;
+	}
+
+	void Graphics::setCameraAngle(glm::vec3 _cameraAngle) {
+		cameraAngle = _cameraAngle;
+	}
+
+	GLFWwindow* Graphics::getWindowPointer() {
+		return window;
 	}
