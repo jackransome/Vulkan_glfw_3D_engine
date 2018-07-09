@@ -1354,8 +1354,8 @@
 		}
 
 		updateUniformBuffer(imageIndex);
-		clearStorageBuffer();
-		createStorageBuffer();
+		//clearStorageBuffer();
+		//createStorageBuffer();
 
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
