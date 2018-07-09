@@ -22,7 +22,6 @@ int main() {
 			gfx.setCameraAngle(input.cameraAngle);
 			input.run();
 			gfx.run();
-			
 			if (input.keys.w) {
 				gfx.changeCameraPos(0, 0, 0.01);
 			}
@@ -40,6 +39,9 @@ int main() {
 			}
 			if (input.keys.leftShift) {
 				gfx.changeCameraPos(0.00, -0.01, 0);
+			}
+			if (input.keys.f) {
+				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().z, gfx.getCameraPos().z, 0);
 			}
 		}
 	}

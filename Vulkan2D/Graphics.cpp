@@ -966,10 +966,10 @@
 
 				vertex.color = colour;// {1.0f, 1.0f, 1.0f, 1};
 
-                if (uniqueVertices.count(vertex) == 0) {
+                //if (uniqueVertices.count(vertex) == 0) {
                     uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
                     vertices.push_back(vertex);
-                }
+                //}
 
                 indices.push_back(uniqueVertices[vertex]);
             }
@@ -1018,6 +1018,8 @@
 
 	void Graphics::createStorageBuffer() {
 		
+
+
 		std::vector<glm::mat4> storageBufferData;
 		for (int i = 0; i < objects.size(); i++) {
 			storageBufferData.push_back(objects[i].transformData);
@@ -1268,7 +1270,6 @@
 				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(objects[j].model->size), 1, static_cast<uint32_t>(objects[j].model->offset), 0, 0);
 			}
 			
-
 			vkCmdEndRenderPass(commandBuffers[i]);
 
 			if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
@@ -1353,6 +1354,8 @@
 		}
 
 		updateUniformBuffer(imageIndex);
+		clearStorageBuffer();
+		createStorageBuffer();
 
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1625,8 +1628,8 @@
 		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
 		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
 		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
-		loadModel("models/box.obj", glm::vec4(0.9, 0.1, 0.1, 1));
-		//loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1));
+		loadModel("models/test3.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1));
 		//createVertexBuffer();
 		//createIndexBuffer();
 	}
@@ -1637,25 +1640,25 @@
 		models[models.size() - 1].size = 36;
 		models.push_back(Model());
 		models[models.size() - 1].offset = 36;
-		models[models.size() - 1].size = 34+576;
+		models[models.size() - 1].size = 684;
 	}
 
 	void Graphics::loadObjects() {
 		objects.push_back(Object());
-		objects[0].model = &models[0];
+		objects[0].model = &models[1];
 		objects[0].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(1, 0.1, 0));
 		objects.push_back(Object());
 		objects[1].model = &models[0];
-		objects[1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(3, 0.1, 0));
+		objects[1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(3, 0.1, 1));
 		objects.push_back(Object());
-		objects[2].model = &models[0];
+		objects[2].model = &models[1];
 		objects[2].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(5, 0.1, 0));
 		objects.push_back(Object());
 		objects[3].model = &models[0];
 		objects[3].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(7, 0.1, 0));
 		objects.push_back(Object());
-		objects[4].model = &models[0];
-		objects[4].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(9, 0.1, 0));
+		objects[4].model = &models[1];
+		objects[4].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(9, 0.1, 2));
 	}
 
 	void Graphics::setUpCamera() {
@@ -1676,4 +1679,21 @@
 
 	GLFWwindow* Graphics::getWindowPointer() {
 		return window;
+	}
+
+	void Graphics::addObject(float x, float y, float z, int modelIndex) {
+		objects.push_back(Object());
+		objects[objects.size() - 1].model = &models[modelIndex];
+		objects[objects.size() - 1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+	}
+
+	glm::vec3 Graphics::getCameraPos() {
+		return cameraPosition;
+	}
+
+	void Graphics::clearStorageBuffer() {
+		vkDestroyBuffer(device, storageBuffer, nullptr);
+		vkFreeMemory(device, storageBufferMemory, nullptr);
+		storageBufferMemory = VK_NULL_HANDLE;
+		storageBuffer = VK_NULL_HANDLE;
 	}

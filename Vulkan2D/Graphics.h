@@ -148,6 +148,10 @@ public:
 
 	GLFWwindow* getWindowPointer();
 
+	void addObject(float x, float y, float z, int modelIndex);
+
+	glm::vec3 getCameraPos();
+
 private:
 
 	std::vector<Model> models;
@@ -325,6 +329,8 @@ private:
 	void createVertexBuffer();
 
 	void createIndexBuffer();
+
+	void clearStorageBuffer();
 
 	void createStorageBuffer();
 
