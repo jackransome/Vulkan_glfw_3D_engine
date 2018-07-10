@@ -14,7 +14,8 @@ layout(location = 0) out vec4 outColor;
 void main() {
 	
     //outColor = fragColor + vec4(test, 1);// texture(texSampler, fragTexCoord);
-
+	vec3 tex = texture(texSampler, fragTexCoord).rgb;
+	vec3 nnormal = normalize(tex * 2.0 - 1.0);   
 	vec3 lightColor = vec3(1,1,1);
 	vec3 lightPos = cameraPos;
 	vec3 objectColor = vec3(fragColor.x, fragColor.y, fragColor.z);//vec3(0.2,0.4,1);
@@ -24,7 +25,7 @@ void main() {
     vec3 ambient = ambientStrength * lightColor;
   	
     // diffuse 
-    vec3 norm = normalize(Normal);
+    vec3 norm = normalize(nnormal+Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
@@ -38,4 +39,5 @@ void main() {
 
 	vec3 result = (ambient + diffuse + specular) * objectColor;
     outColor = vec4(result, 1.0);
+	//outColor = vec4(ambient + diffuse + specular, 1) * texture(texSampler, fragTexCoord);
 }

@@ -1018,8 +1018,6 @@
 
 	void Graphics::createStorageBuffer() {
 		
-
-
 		std::vector<glm::mat4> storageBufferData;
 		for (int i = 0; i < objects.size(); i++) {
 			storageBufferData.push_back(objects[i].transformData);
@@ -1037,6 +1035,30 @@
 		vkUnmapMemory(device, stagingBufferMemory);
 
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
+
+		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
+
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
+	void Graphics::updateStorageBuffer() {
+
+		std::vector<glm::mat4> storageBufferData;
+		for (int i = 0; i < objects.size(); i++) {
+			storageBufferData.push_back(objects[i].transformData);
+		}
+
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;// storageBufferData.size();
+
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, storageBufferData.data(), (size_t)bufferSize);
+		vkUnmapMemory(device, stagingBufferMemory);
 
 		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
 
@@ -1355,7 +1377,7 @@
 
 		updateUniformBuffer(imageIndex);
 		//clearStorageBuffer();
-		//createStorageBuffer();
+		updateStorageBuffer();
 
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

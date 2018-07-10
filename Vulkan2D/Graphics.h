@@ -115,7 +115,7 @@ struct QueueFamilyIndices {
 
 
 const std::string MODEL_PATH = "models/chalet.obj";
-const std::string TEXTURE_PATH = "textures/chalet.jpg";
+const std::string TEXTURE_PATH = "textures/normal.png";
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_LUNARG_standard_validation"
@@ -333,6 +333,8 @@ private:
 	void clearStorageBuffer();
 
 	void createStorageBuffer();
+
+	void updateStorageBuffer();
 
 	void createUniformBuffers();
 
