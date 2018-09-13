@@ -24,6 +24,14 @@ layout(location = 2) out vec3 FragPos;
 layout(location = 3) out vec3 Normal;
 layout(location = 4) out vec3 cameraPos;
 
+out VS_OUT {
+    vec3 FragPos;
+    vec2 TexCoords;
+    vec3 TangentLightPos;
+    vec3 TangentViewPos;
+    vec3 TangentFragPos;
+} vs_out;
+
 layout(push_constant) uniform transformData
 {
   int index;
@@ -34,14 +42,37 @@ out gl_PerVertex {
 };
 
 void main() {
-    gl_Position = ubo.proj * ubo.view /* ubo.model */ * objects.transform[object.index] * vec4(inPosition, 1.0);
-	/*gl_Position.x = objects.transform[object.index][0][0] + objects.transform[object.index][0][1] + objects.transform[object.index][0][2] + objects.transform[object.index][0][3];
-	gl_Position.x += objects.transform[object.index][1][0] + objects.transform[object.index][1][1] + objects.transform[object.index][1][2] + objects.transform[object.index][1][3];
-	gl_Position.x += objects.transform[object.index][2][0] + objects.transform[object.index][2][1] + objects.transform[object.index][2][2] + objects.transform[object.index][2][3];
-	gl_Position.x += objects.transform[object.index][3][0] + objects.transform[object.index][3][1] + objects.transform[object.index][3][2] + objects.transform[object.index][3][3];*/
+    gl_Position = ubo.proj * ubo.view /** ubo.model*/ * objects.transform[object.index] * vec4(inPosition, 1.0);
     fragColor = inColor;
 	FragPos = vec3(objects.transform[object.index] * vec4(inPosition, 1.0));
     Normal = mat3(transpose(inverse(objects.transform[object.index]))) * inNormal;;
 	cameraPos = ubo.cameraPos;
     fragTexCoord = inTexCoord;
+
+	vec3 tangent; 
+
+	vec3 c1 = cross(Normal, vec3(0.0, 0.0, 1.0)); 
+	vec3 c2 = cross(Normal, vec3(0.0, 1.0, 0.0)); 
+
+	if ( length(c1) > length(c2) ) {
+		tangent = c1;	
+	}
+	else {
+		tangent = c2;	
+	}
+
+	tangent = normalize(tangent);
+
+	vec3 bitangent = cross(tangent, Normal);
+
+	mat3 normalMatrix = transpose(inverse(mat3(objects.transform[object.index])));
+    vec3 T = normalize(normalMatrix * tangent);
+    vec3 N = normalize(normalMatrix * Normal);
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T);
+    
+    mat3 TBN = transpose(mat3(T, B, N));    
+    vs_out.TangentLightPos = TBN * cameraPos;
+    vs_out.TangentViewPos  = TBN * cameraPos;
+    vs_out.TangentFragPos  = TBN * vs_out.FragPos;
 }

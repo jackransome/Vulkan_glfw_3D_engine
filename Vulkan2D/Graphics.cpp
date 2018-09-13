@@ -1017,13 +1017,13 @@
 	}
 
 	void Graphics::createStorageBuffer() {
-		
 		std::vector<glm::mat4> storageBufferData;
 		for (int i = 0; i < objects.size(); i++) {
 			storageBufferData.push_back(objects[i].transformData);
 		}
 		
-		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;// storageBufferData.size();
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * objects.size();
+		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -1034,7 +1034,7 @@
 		memcpy(data, storageBufferData.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
 
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
+		createBuffer(maxBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
 
 		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
 
@@ -1049,7 +1049,8 @@
 			storageBufferData.push_back(objects[i].transformData);
 		}
 
-		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;// storageBufferData.size();
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) *  objects.size();
+		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -1059,6 +1060,8 @@
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 		memcpy(data, storageBufferData.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
+
+		//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
 
 		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
 
@@ -1378,6 +1381,7 @@
 		updateUniformBuffer(imageIndex);
 		//clearStorageBuffer();
 		updateStorageBuffer();
+		createCommandBuffers();
 
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1641,19 +1645,9 @@
 
 	void Graphics::loadResources()
 	{
-		/*drawRect(-500, 0, 10, 10, 1, 0, 0, 1);
-		drawRect(-485, 0, 10, 10, 1, 0, 0.5, 1);
-		drawRect(-470, 0, 10, 10, 1, 0, 1, 1);
-		drawRect(-455, 0, 10, 10, 0.5, 0, 1, 1);
-		drawRect(-440, 0, 10, 10, 0, 0, 1, 1);
-		drawRect(-425, 0, 10, 10, 0, 0.5, 1, 1);
-		drawRect(-410, 0, 10, 10, 0, 1, 1, 1);
-		drawRect(-395, 0, 10, 10, 0, 1, 0.5, 1);
-		drawRect(-380, 0, 10, 10, 0, 1, 0, 1);*/
 		loadModel("models/test3.obj", glm::vec4(0.9, 0.1, 0.1, 1));
+		loadModel("models/test3.obj", glm::vec4(0.2, 0.4, 0.9, 1));
 		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1));
-		//createVertexBuffer();
-		//createIndexBuffer();
 	}
 	void Graphics::loadModels()
 	{
@@ -1662,25 +1656,19 @@
 		models[models.size() - 1].size = 36;
 		models.push_back(Model());
 		models[models.size() - 1].offset = 36;
+		models[models.size() - 1].size = 36;
+		models.push_back(Model());
+		models[models.size() - 1].offset = 72;
 		models[models.size() - 1].size = 684;
 	}
 
 	void Graphics::loadObjects() {
-		objects.push_back(Object());
-		objects[0].model = &models[1];
-		objects[0].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(1, 0.1, 0));
-		objects.push_back(Object());
-		objects[1].model = &models[0];
-		objects[1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(3, 0.1, 1));
-		objects.push_back(Object());
-		objects[2].model = &models[1];
-		objects[2].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(5, 0.1, 0));
-		objects.push_back(Object());
-		objects[3].model = &models[0];
-		objects[3].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(7, 0.1, 0));
-		objects.push_back(Object());
-		objects[4].model = &models[1];
-		objects[4].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(9, 0.1, 2));
+
+		addObject(1, 0.1, 0, 1);
+		addObject(3, 0.1, 1, 0);
+		addObject(5, 0.1, 0, 1);
+		addObject(7, 0.1, 0, 0);
+		addObject(9, 0.1, 2, 1);
 	}
 
 	void Graphics::setUpCamera() {
@@ -1704,6 +1692,7 @@
 	}
 
 	void Graphics::addObject(float x, float y, float z, int modelIndex) {
+		if (objects.size() >= MAX_OBJECTS) { return; }
 		objects.push_back(Object());
 		objects[objects.size() - 1].model = &models[modelIndex];
 		objects[objects.size() - 1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));

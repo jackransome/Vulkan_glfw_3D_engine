@@ -16,7 +16,7 @@ int main() {
 		gfx.init();
 		input.init(gfx.getWindowPointer());
 		glfwSetKeyCallback(gfx.getWindowPointer(), key_callback);
-
+		bool lastF;
 		while (!gfx.shouldClose) {
 
 			gfx.setCameraAngle(input.cameraAngle);
@@ -40,9 +40,10 @@ int main() {
 			if (input.keys.leftShift) {
 				gfx.changeCameraPos(0.00, -0.01, 0);
 			}
-			if (input.keys.f) {
-				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().z, gfx.getCameraPos().z, 0);
+			if (input.keys.f && !lastF) {
+				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 2);
 			}
+			lastF = input.keys.f;
 		}
 	}
 	catch (const std::runtime_error& e) {
