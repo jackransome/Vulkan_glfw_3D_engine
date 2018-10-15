@@ -8,17 +8,44 @@ namespace collisionDetection {
 		return false;
 	}
 	void correctCollisionBoxes(CollisionBox* b1, CollisionBox* b2) {
-		//within xy
+		//collision within xy
 		if (detectRectangleCollision(b1->position.x, b1->position.y, b1->dimensions.x, b1->dimensions.y, b2->position.x, b2->position.y, b2->dimensions.x, b2->dimensions.y)) {
-
+			//from z negative side
+			if (b1->position.z >= b2->position.z + b2->dimensions.z && b1->position.z + b1->velocity.z < b2->position.z + b2->dimensions.z) {
+				b1->velocity.z = 0;
+				b1->position.z = b2->position.z + b2->dimensions.z;
+			}
+			//from z negative side
+			if (b1->position.z + b1->dimensions.z <= b2->position.z && b1->position.z + b1->dimensions.z + b1->velocity.z > b2->position.z) {
+				b1->velocity.z = 0;
+				b1->position.z = b2->position.z - b1->dimensions.z;
+			}
 		}
-		//within xz
+		//collision within xz
 		if (detectRectangleCollision(b1->position.x, b1->position.z, b1->dimensions.x, b1->dimensions.z, b2->position.x, b2->position.z, b2->dimensions.x, b2->dimensions.z)) {
-
+			//from y negative side
+			if (b1->position.y >= b2->position.y + b2->dimensions.y && b1->position.y + b1->velocity.y < b2->position.y + b2->dimensions.y) {
+				b1->velocity.y = 0;
+				b1->position.y = b2->position.y + b2->dimensions.y;
+			}
+			//from y negative side
+			if (b1->position.y + b1->dimensions.y -0.01 <= b2->position.y && b1->position.y + b1->dimensions.y + b1->velocity.y > b2->position.y) {
+  				b1->velocity.y = 0;
+				b1->position.y = b2->position.y - b1->dimensions.y;
+			}
 		}
-		//withing zy
+		//collision within zy
 		if (detectRectangleCollision(b1->position.z, b1->position.y, b1->dimensions.z, b1->dimensions.y, b2->position.z, b2->position.y, b2->dimensions.z, b2->dimensions.y)) {
-
+			//from x positive side
+			if (b1->position.x >= b2->position.x + b2->dimensions.x && b1->position.x + b1->velocity.x < b2->position.x + b2->dimensions.x) {
+				b1->velocity.x = 0;
+				b1->position.x = b2->position.x + b2->dimensions.x;
+			}
+			//from x negative side
+			if (b1->position.x + b1->dimensions.x <= b2->position.x && b1->position.x + b1->dimensions.x + b1->velocity.x > b2->position.x) {
+				b1->velocity.x = 0;
+				b1->position.x = b2->position.x - b1->dimensions.x;
+			}
 		}
 	}
 }

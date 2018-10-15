@@ -1,6 +1,6 @@
 #include "Graphics.h"
 #include "Input.h"
-
+#include "CollisionDetection.h"
 Graphics gfx;
 Input input;
 
@@ -17,33 +17,60 @@ int main() {
 		input.init(gfx.getWindowPointer());
 		glfwSetKeyCallback(gfx.getWindowPointer(), key_callback);
 		bool lastF;
+		std::vector<CollisionBox> boxes;
+		CollisionBox test;
+		test.dimensions = glm::vec3(1, 1, 1);
+		test.velocity = glm::vec3(0, 0, 0);
+		test.position = glm::vec3(0, 0, 0);
+		boxes.push_back(test);
+		glm::vec3 inputVelocity = glm::vec3(0,0,0);
+		CollisionBox camera;
+		camera.dimensions = glm::vec3(0.01, 0.01, 0.01);
+		camera.velocity = glm::vec3(0, 0, 0);
+		bool lastSpace;
 		while (!gfx.shouldClose) {
 
 			gfx.setCameraAngle(input.cameraAngle);
 			input.run();
 			gfx.run();
+
+			inputVelocity = glm::vec3(0, 0, 0);
+			
 			if (input.keys.w) {
-				gfx.changeCameraPos(0, 0, 0.01);
+				inputVelocity.z = 0.01;
 			}
 			if (input.keys.a) {
-				gfx.changeCameraPos(-0.01, 0, 0);
+				inputVelocity.x = -0.01;
 			}
 			if (input.keys.s) {
-				gfx.changeCameraPos(0, 0, -0.01);
+				inputVelocity.z = -0.01;
 			}
 			if (input.keys.d) {
-				gfx.changeCameraPos(0.01, 0, 0);
+				inputVelocity.x = 0.01;
 			}
 			if (input.keys.space) {
-				gfx.changeCameraPos(0.00, 0.01, 0);
+				inputVelocity.y = 0.01;
 			}
 			if (input.keys.leftShift) {
-				gfx.changeCameraPos(0.00, -0.01, 0);
+				inputVelocity.y = -0.01;
 			}
+
+			camera.velocity = gfx.getProperCameraVelocity(inputVelocity);
+			for (int i = 0; i < boxes.size(); i++) {
+				collisionDetection::correctCollisionBoxes(&camera, &boxes[i]);
+			}
+			gfx.setCameraPos(camera.position);
+			gfx.setCameraPos(gfx.getCameraPos()+camera.velocity);
 			if (input.keys.f && !lastF) {
-				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 2);
+				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 1);
+				test.dimensions = glm::vec3(1, 1, 1);
+				test.velocity = glm::vec3(0, 0, 0);
+				test.position = glm::vec3(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z);
+				boxes.push_back(test);
 			}
 			lastF = input.keys.f;
+			camera.position = gfx.getCameraPos();
+
 		}
 	}
 	catch (const std::runtime_error& e) {

@@ -146,6 +146,10 @@ public:
 
 	void setCameraAngle(glm::vec3 cameraAngle);
 
+	void setCameraPos(glm::vec3 cameraPos);
+
+	glm::vec3 getProperCameraVelocity(glm::vec3 cameraVel);
+
 	GLFWwindow* getWindowPointer();
 
 	void addObject(float x, float y, float z, int modelIndex);
@@ -324,7 +328,7 @@ private:
 
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
-	void loadModel(std::string path, glm::vec4 colour);
+	void loadModel(std::string path, glm::vec4 colour, float scale);
 
 	void createVertexBuffer();
 

@@ -17,10 +17,12 @@ void main() {
 	vec3 tex = texture(texSampler, fragTexCoord).rgb;
 	vec3 lightColor = vec3(1,1,1);
 	vec3 lightPos = cameraPos;
+	vec4 text = texture(texSampler, fragTexCoord);
+	//vec3 objectColor = vec3(text.x, text.y, text.z);
 	vec3 objectColor = vec3(fragColor.x, fragColor.y, fragColor.z);//vec3(0.2,0.4,1);
 
 	// ambient
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.6;
     vec3 ambient = ambientStrength * lightColor;
   	
     // diffuse 
@@ -35,6 +37,9 @@ void main() {
     vec3 reflectDir = reflect(-lightDir, norm);  
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * spec * lightColor;  
+    if (diffuse == vec3(0,0,0)){
+        specular = vec3(0,0,0);
+    }
 
 	vec3 result = (ambient + diffuse + specular) * objectColor;
     outColor = vec4(result, 1.0);

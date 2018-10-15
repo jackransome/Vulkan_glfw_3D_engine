@@ -931,7 +931,7 @@
 		endSingleTimeCommands(commandBuffer);
 	}
 
-	void Graphics::loadModel(std::string path, glm::vec4 colour) {
+	void Graphics::loadModel(std::string path, glm::vec4 colour, float scale) {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
@@ -947,11 +947,11 @@
             for (const auto& index : shape.mesh.indices) {
                 Vertex vertex = {};
 
-                vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
-                };
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0] * scale,
+					attrib.vertices[3 * index.vertex_index + 1] * scale,
+					attrib.vertices[3 * index.vertex_index + 2] * scale
+				};
 
 				vertex.normal = {
 					attrib.normals[3 * index.normal_index + 0],
@@ -974,6 +974,7 @@
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+		int y = 1;
     }
 
 	void Graphics::createVertexBuffer() {
@@ -1060,8 +1061,6 @@
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 		memcpy(data, storageBufferData.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
-
-		//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, storageBuffer, storageBufferMemory);
 
 		copyBuffer(stagingBuffer, storageBuffer, bufferSize);
 
@@ -1271,7 +1270,7 @@
 			renderPassInfo.renderArea.extent = swapChainExtent;
 
 			std::array<VkClearValue, 2> clearValues = {};
-			clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+			clearValues[0].color = { 0.9f, 0.9f,0.9f, 1.0f };
 			clearValues[1].depthStencil = { 1.0f, 0 };
 
 			renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -1342,7 +1341,7 @@
 
 		UniformBufferObject ubo = {};
 		//ubo.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
-		ubo.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
+		ubo.view = glm::lookAt(cameraPosition- direction, cameraPosition , up);
 		ubo.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
 		ubo.proj[1][1] *= -1;
 		ubo.cameraPos = cameraPosition;
@@ -1378,8 +1377,9 @@
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
+		objects[0].transformData = glm::translate(glm::mat4(1.0f), cameraPosition);
+
 		updateUniformBuffer(imageIndex);
-		//clearStorageBuffer();
 		updateStorageBuffer();
 		createCommandBuffers();
 
@@ -1645,9 +1645,10 @@
 
 	void Graphics::loadResources()
 	{
-		loadModel("models/test3.obj", glm::vec4(0.9, 0.1, 0.1, 1));
-		loadModel("models/test3.obj", glm::vec4(0.2, 0.4, 0.9, 1));
-		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1));
+		loadModel("models/testUV.obj", glm::vec4(0.9, 0.1, 0.1, 1), 1);
+		loadModel("models/test3.obj", glm::vec4(0.2, 0.4, 0.9, 1), 1);
+		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1), 1);
+		loadModel("models/small_sphere.obj", glm::vec4(0.7, 0.9, 0.1, 1), 1);
 	}
 	void Graphics::loadModels()
 	{
@@ -1660,11 +1661,14 @@
 		models.push_back(Model());
 		models[models.size() - 1].offset = 72;
 		models[models.size() - 1].size = 684;
+		models.push_back(Model());
+		models[models.size() - 1].offset = 756;
+		models[models.size() - 1].size = 2280;
 	}
 
 	void Graphics::loadObjects() {
-
-		addObject(1, 0.1, 0, 1);
+		addObject(0, 0, 0, 3);
+		addObject(0, 0, 0, 1);
 		addObject(3, 0.1, 1, 0);
 		addObject(5, 0.1, 0, 1);
 		addObject(7, 0.1, 0, 0);
@@ -1683,8 +1687,20 @@
 		cameraPosition += z * forward * cameraVelocity;
 	}
 
+	glm::vec3 Graphics::getProperCameraVelocity(glm::vec3 cameraVel) {
+		glm::vec3 forward = glm::vec3(sin(cameraAngle.x), 0, cos(cameraAngle.x));
+		glm::vec3 vel = cameraVel.x * right * cameraVelocity + glm::vec3(0,cameraVel.y * cameraVelocity,0) + cameraVel.z * forward * cameraVelocity;
+		vel.y = cameraVel.y * cameraVelocity;
+		return vel;
+	}
+
 	void Graphics::setCameraAngle(glm::vec3 _cameraAngle) {
 		cameraAngle = _cameraAngle;
+	}
+
+	void Graphics::setCameraPos(glm::vec3 cameraPos)
+	{
+		cameraPosition = cameraPos;
 	}
 
 	GLFWwindow* Graphics::getWindowPointer() {
