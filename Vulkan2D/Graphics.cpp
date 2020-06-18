@@ -964,7 +964,7 @@
                     1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
                 };
 
-				vertex.color = colour;// {1.0f, 1.0f, 1.0f, 1};
+				vertex.colour = colour;// {1.0f, 1.0f, 1.0f, 1};
 
                 //if (uniqueVertices.count(vertex) == 0) {
                     uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -1363,6 +1363,9 @@
 	}
 
 	void Graphics::drawFrame() {
+
+		addObject((rand() % 100), (rand() % 100), (rand() % 100), 3);
+
 		vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 		vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
