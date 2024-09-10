@@ -37,22 +37,22 @@ int main() {
 			inputVelocity = glm::vec3(0, 0, 0);
 			
 			if (input.keys.w) {
-				inputVelocity.z = 0.01;
+				inputVelocity.z = 0.03;
 			}
 			if (input.keys.a) {
-				inputVelocity.x = -0.01;
+				inputVelocity.x = -0.03;
 			}
 			if (input.keys.s) {
-				inputVelocity.z = -0.01;
+				inputVelocity.z = -0.03;
 			}
 			if (input.keys.d) {
-				inputVelocity.x = 0.01;
+				inputVelocity.x = 0.03;
 			}
 			if (input.keys.space) {
-				inputVelocity.y = 0.01;
+				inputVelocity.y = 0.03;
 			}
 			if (input.keys.leftShift) {
-				inputVelocity.y = -0.01;
+				inputVelocity.y = -0.03;
 			}
 
 			camera.velocity = gfx.getProperCameraVelocity(inputVelocity);
@@ -62,7 +62,7 @@ int main() {
 			gfx.setCameraPos(camera.position);
 			gfx.setCameraPos(gfx.getCameraPos()+camera.velocity);
 			if (input.keys.f && !lastF) {
-				gfx.addObject(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 1);
+				gfx.addRenderInstance(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 1);
 				test.dimensions = glm::vec3(1, 1, 1);
 				test.velocity = glm::vec3(0, 0, 0);
 				test.position = glm::vec3(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z);

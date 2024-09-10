@@ -27,31 +27,37 @@
 	}
 
 	void Graphics::initVulkan() {
-		createInstance();
-		setupDebugCallback();
-		createSurface();
-		pickPhysicalDevice();
-		createLogicalDevice();
-		createSwapChain();
-		createImageViews();
-		createRenderPass();
-		createDescriptorSetLayout();
-		createGraphicsPipeline();
+		createInstance(); // create the vulkan instance (get extensions, set name and version etc)
+		setupDebugCallback(); // for validation layers
+		createSurface(); // get glfw surface to draw on
+		pickPhysicalDevice(); // spicks the gpu
+		createLogicalDevice(); // creates an abstraciton of the gpu
+		createSwapChain(); // creates swap chain + swap chain images
+		createImageViews(); //creates image views for the swap chain images
+		createRenderPass(); // creates a render pass and a sub pass
+
+		pipelineBundles.push_back(createCurrentPipelineBundle(swapChainExtent, renderPass, swapChainImages.size()));
+
+		//createDescriptorSetLayout();
+		//createGraphicsPipeline();
 		createCommandPool();
-		createDepthResources();
+		createDepthResources();// important for depth testing, so shaders only overwrite things further away
 		createFramebuffers();
 		createTextureImage();
 		createTextureImageView();
 		createTextureSampler();
 		loadResources();
-		loadModels();
 		loadObjects();
 		createVertexBuffer();
 		createIndexBuffer();
 		createStorageBuffer();
 		createUniformBuffers();
-		createDescriptorPool();
-		createDescriptorSets();
+		//createDescriptorPool();
+		//createDescriptorSets();
+
+		updatePipelineBundleResources(pipelineBundles[0], uniformBuffers, storageBuffer, textureImageView, textureSampler);
+		updateDescriptorSet(pipelineBundles[0]);
+		
 		createCommandBuffers();
 		createSyncObjects();
 		setUpCamera();
@@ -167,7 +173,7 @@
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.pEngineName = "No Engine";
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;
+		appInfo.apiVersion = VK_API_VERSION_1_3;
 
 		VkInstanceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -639,10 +645,19 @@
 	}
 
 	void Graphics::createTextureImage() {
+		int mainTextureIndex = loadTexture(TEXTURE_PATH);
+
+		// Set class members to maintain original functionality
+		textureImage = textures[mainTextureIndex].textureImage;
+		textureImageMemory = textures[mainTextureIndex].textureImageMemory;
+		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(textures[mainTextureIndex].width, textures[mainTextureIndex].height)))) + 1;
+	}
+
+	uint32_t Graphics::loadTexture(const std::string& texturePath) {
 		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
-		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+		uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
@@ -659,16 +674,22 @@
 
 		stbi_image_free(pixels);
 
+		VkImage textureImage;
+		VkDeviceMemory textureImageMemory;
 		createImage(texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
 		transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
 		copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
 
 		generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_UNORM, texWidth, texHeight, mipLevels);
+
+		Texture newTexture = { textureImage, textureImageMemory, texturePath,  createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels), texWidth, texHeight, mipLevels };
+		textures.push_back(newTexture);
+
+		return static_cast<uint32_t>(textures.size() - 1);
 	}
 
 	void Graphics::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
@@ -759,7 +780,7 @@
 	}
 
 	void Graphics::createTextureImageView() {
-		textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+		textureImageView = textures[0].textureImageView;
 	}
 
 	void Graphics::createTextureSampler() {
@@ -778,7 +799,11 @@
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		samplerInfo.minLod = 0;
-		samplerInfo.maxLod = static_cast<float>(mipLevels);
+		samplerInfo.maxLod = static_cast<float>(std::max_element(textures.begin(), textures.end(),
+			[](const Texture& a, const Texture& b) {
+				return a.mipLevels < b.mipLevels;
+			})->mipLevels);
+		std::cout << "mipLevels: " << mipLevels << std::endl;
 		samplerInfo.mipLodBias = 0;
 
 		if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
@@ -931,21 +956,45 @@
 		endSingleTimeCommands(commandBuffer);
 	}
 
-	void Graphics::loadModel(std::string path, glm::vec4 colour, float scale) {
-        tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string err;
+	void Graphics::loadModel(std::string path, glm::vec4 defaultColor, float scale) {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string err, warn;
+		std::string directory = path.substr(0, path.find_last_of("/\\") + 1);
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str())) {
-            throw std::runtime_error(err);
-        }
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str(), directory.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
 
-        std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
+		uint32_t vertexOffset = static_cast<uint32_t>(vertices.size());
+		uint32_t indexOffset = static_cast<uint32_t>(indices.size());
+		std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
 
-        for (const auto& shape : shapes) {
-            for (const auto& index : shape.mesh.indices) {
-                Vertex vertex = {};
+		VkImageView modelTextureView = VK_NULL_HANDLE;
+		VkImageView normalMapView = VK_NULL_HANDLE;
+
+		uint32_t textureIndex = loadTexture(TEXTURE_PATH);
+		modelTextureView = textures[textureIndex].textureImageView;
+
+		// Load textures if available
+		if (!materials.empty()) {
+			const auto& material = materials[0];
+			if (!material.diffuse_texname.empty()) {
+				std::string texturePath = directory + material.diffuse_texname;
+				uint32_t textureIndex = loadTexture(texturePath);
+				modelTextureView = textures[textureIndex].textureImageView;
+			}
+			if (!material.bump_texname.empty()) {
+				std::string normalMapPath = directory + material.bump_texname;
+				uint32_t normalMapIndex = loadTexture(normalMapPath);
+				normalMapView = textures[normalMapIndex].textureImageView;
+			}
+		}
+
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				Vertex vertex = {};
 
 				vertex.pos = {
 					attrib.vertices[3 * index.vertex_index + 0] * scale,
@@ -953,29 +1002,59 @@
 					attrib.vertices[3 * index.vertex_index + 2] * scale
 				};
 
-				vertex.normal = {
-					attrib.normals[3 * index.normal_index + 0],
-					attrib.normals[3 * index.normal_index + 1],
-					attrib.normals[3 * index.normal_index + 2]
-				};
+				if (index.normal_index >= 0) {
+					vertex.normal = {
+						attrib.normals[3 * index.normal_index + 0],
+						attrib.normals[3 * index.normal_index + 1],
+						attrib.normals[3 * index.normal_index + 2]
+					};
+				}
 
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                };
+				if (index.texcoord_index >= 0) {
+					vertex.texCoord = {
+						attrib.texcoords[2 * index.texcoord_index + 0],
+						1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+					};
+				}
 
-				vertex.colour = colour;// {1.0f, 1.0f, 1.0f, 1};
+				// Get material for this face
+				int materialId = shape.mesh.material_ids[index.vertex_index / 3];
+				if (materialId >= 0 && materialId < materials.size()) {
+					const auto& material = materials[materialId];
+					vertex.diffuse = glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
+					vertex.specular = glm::vec3(material.specular[0], material.specular[1], material.specular[2]);
+					vertex.ambient = glm::vec3(material.ambient[0], material.ambient[1], material.ambient[2]);
+					vertex.shininess = material.shininess;
+					vertex.opacity = material.dissolve;
+				}
+				else {
+					// Use default color if no material is specified
+					vertex.diffuse = glm::vec3(defaultColor);
+					vertex.specular = glm::vec3(0.5f);
+					vertex.ambient = glm::vec3(0.1f);
+					vertex.shininess = 32.0f;
+					vertex.opacity = defaultColor.a;
+				}
 
-                //if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
-                //}
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+					vertices.push_back(vertex);
+				}
+				indices.push_back(uniqueVertices[vertex]);
+			}
+		}
 
-                indices.push_back(uniqueVertices[vertex]);
-            }
-        }
-		int y = 1;
-    }
+		uint32_t vertexCount = static_cast<uint32_t>(vertices.size()) - vertexOffset;
+		uint32_t indexCount = static_cast<uint32_t>(indices.size()) - indexOffset;
+
+		Model newModel;
+		newModel.offset = indexOffset;
+		newModel.size = indexCount;
+		newModel.textureImageView = modelTextureView;
+		newModel.normalMapImageView = normalMapView;
+		models.push_back(newModel);
+	}
+
 
 	void Graphics::createVertexBuffer() {
 		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
@@ -1019,12 +1098,14 @@
 
 	void Graphics::createStorageBuffer() {
 		std::vector<glm::mat4> storageBufferData;
-		for (int i = 0; i < objects.size(); i++) {
-			storageBufferData.push_back(objects[i].transformData);
+		for (int i = 0; i < renderInstances.size(); i++) {
+			for (int j = 0; j < renderInstanceIndexes[i]; j++) {
+				storageBufferData.push_back(renderInstances[i][j].transformData);
+			}
 		}
 		
-		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * objects.size();
-		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * renderInstances.size();
+		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_RENDER_INSTANCES;
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -1045,13 +1126,19 @@
 
 	void Graphics::updateStorageBuffer() {
 
+		//std::cout << "totalRenderInstances = " << totalRenderInstances << std::endl;
+		int t = 0;
 		std::vector<glm::mat4> storageBufferData;
-		for (int i = 0; i < objects.size(); i++) {
-			storageBufferData.push_back(objects[i].transformData);
+		for (int i = 0; i < renderInstances.size(); i++) {
+			for (int j = 0; j < renderInstanceIndexes[i]; j++) {
+				storageBufferData.push_back(renderInstances[i][j].transformData);
+				t++;
+			}
 		}
+		//std::cout << t << " draws added to storage buffer" << std::endl;
 
-		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) *  objects.size();
-		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_OBJECTS;
+		VkDeviceSize bufferSize = sizeof(storageBufferData[0]) * totalRenderInstances;
+		VkDeviceSize maxBufferSize = sizeof(storageBufferData[0]) * MAX_RENDER_INSTANCES;
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
@@ -1121,7 +1208,7 @@
 			VkDescriptorBufferInfo ssboInfo = {};
 			ssboInfo.buffer = storageBuffer;
 			ssboInfo.offset = 0;
-			ssboInfo.range = sizeof(glm::mat4)*MAX_OBJECTS;
+			ssboInfo.range = sizeof(glm::mat4)* MAX_RENDER_INSTANCES;
 
 			VkDescriptorImageInfo imageInfo = {};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1278,7 +1365,7 @@
 
 			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipeline);
 
 			VkBuffer vertexBuffers[] = { vertexBuffer };
 			VkDeviceSize offsets[] = { 0 };
@@ -1287,12 +1374,30 @@
 
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
-			for (int j = 0; j < objects.size(); j++) {
-				//push constant for object index
-				vkCmdPushConstants(commandBuffers[i], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&j);
-				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(objects[j].model->size), 1, static_cast<uint32_t>(objects[j].model->offset), 0, 0);
+
+			// TODO:
+			//
+			// loop through each group of instances, setting a push constant for the starting index in the storage buffer, and doing an instances draw
+			// also update the descriptor set with the correct texture
+			// what happens if there is no texture or it's a 2D image draw:
+			// lets not support no texture for now
+			// we need a new pipeline for only 2D stuff.
+			int startingIndex = 0;
+			for (int j = 0; j < renderInstances.size(); j++) {
+				if (renderInstanceIndexes[j] > 0) {
+					updatePipelineBundleResources(pipelineBundles[0], uniformBuffers, storageBuffer, renderInstances[j][0].model->textureImageView, textureSampler);
+					vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
+					vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&startingIndex);  //HERE123
+					vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(models[j].size), renderInstanceIndexes[j], static_cast<uint32_t>(models[j].offset), 0, 0);
+				}
+				startingIndex += renderInstanceIndexes[j];
 			}
+			/*vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
+			for (int j = 0; j < renderInstances.size(); j++) {
+				//push constant for object index
+				vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&j);  //HERE123
+				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(renderInstances[j].model->size), 1, static_cast<uint32_t>(renderInstances[j].model->offset), 0, 0);
+			}*/
 			
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1364,7 +1469,14 @@
 
 	void Graphics::drawFrame() {
 
-		addObject((rand() % 100), (rand() % 100), (rand() % 100), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
 
 		vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 		vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -1380,7 +1492,7 @@
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
-		objects[0].transformData = glm::translate(glm::mat4(1.0f), cameraPosition);
+		//renderInstances[0][0].transformData = glm::translate(glm::mat4(1.0f), cameraPosition);
 
 		updateUniformBuffer(imageIndex);
 		updateStorageBuffer();
@@ -1652,30 +1764,20 @@
 		loadModel("models/test3.obj", glm::vec4(0.2, 0.4, 0.9, 1), 1);
 		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1), 1);
 		loadModel("models/small_sphere.obj", glm::vec4(0.7, 0.9, 0.1, 1), 1);
-	}
-	void Graphics::loadModels()
-	{
-		models.push_back(Model());
-		models[models.size() - 1].offset = 0;
-		models[models.size() - 1].size = 36;
-		models.push_back(Model());
-		models[models.size() - 1].offset = 36;
-		models[models.size() - 1].size = 36;
-		models.push_back(Model());
-		models[models.size() - 1].offset = 72;
-		models[models.size() - 1].size = 684;
-		models.push_back(Model());
-		models[models.size() - 1].offset = 756;
-		models[models.size() - 1].size = 2280;
+		renderInstances.resize(models.size());
+		renderInstanceIndexes.resize(models.size());
+		std::fill(renderInstanceIndexes.begin(), renderInstanceIndexes.end(), 0);
 	}
 
+
 	void Graphics::loadObjects() {
-		addObject(0, 0, 0, 3);
-		addObject(0, 0, 0, 1);
-		addObject(3, 0.1, 1, 0);
-		addObject(5, 0.1, 0, 1);
-		addObject(7, 0.1, 0, 0);
-		addObject(9, 0.1, 2, 1);
+		addRenderInstance(0, 0, 0, 3);
+		addRenderInstance(0, 0, 0, 1);
+		addRenderInstance(-1, -1, -1, 1);
+		addRenderInstance(3, 0.1, 1, 2);
+		addRenderInstance(5, 0.1, 0, 1);
+		addRenderInstance(7, 0.1, 0, 0);
+		addRenderInstance(9, 0.1, 2, 1);
 	}
 
 	void Graphics::setUpCamera() {
@@ -1710,11 +1812,32 @@
 		return window;
 	}
 
-	void Graphics::addObject(float x, float y, float z, int modelIndex) {
-		if (objects.size() >= MAX_OBJECTS) { return; }
-		objects.push_back(Object());
-		objects[objects.size() - 1].model = &models[modelIndex];
-		objects[objects.size() - 1].transformData = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+	void Graphics::addRenderInstance(float x, float y, float z, int modelIndex) {
+		
+		if (modelIndex >= models.size()) {
+			std::cout << "Model index " << modelIndex << "out of range" << std::endl;
+			return;
+		}
+		if (totalRenderInstances == MAX_RENDER_INSTANCES) {
+			//std::cout << "Max render instances reached" << std::endl;
+			return;
+		}
+		std::vector<RenderInstance>& modelRenderInstances = renderInstances[modelIndex];
+
+		modelRenderInstances.emplace_back();
+
+		RenderInstance& instance = modelRenderInstances[renderInstanceIndexes[modelIndex]];
+		renderInstanceIndexes[modelIndex]++;
+		instance.model = &models[modelIndex];
+		instance.transformData = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+		totalRenderInstances++;
+		if (modelRenderInstances.size() >= modelRenderInstances.capacity()) {
+			modelRenderInstances.reserve(modelRenderInstances.size() + 5);  // Add margin of 5
+		}
+	}
+
+	void Graphics::resetRenderInstances() {
+		std::fill(renderInstanceIndexes.begin(), renderInstanceIndexes.end(), 0);
 	}
 
 	glm::vec3 Graphics::getCameraPos() {
@@ -1727,3 +1850,354 @@
 		storageBufferMemory = VK_NULL_HANDLE;
 		storageBuffer = VK_NULL_HANDLE;
 	}
+
+	VkPipeline Graphics::createGraphicsPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath,
+		VkDescriptorSetLayout descriptorSetLayout, VkExtent2D swapChainExtent,
+		VkRenderPass renderPass, VkPipelineLayout& pipelineLayout) {
+		auto vertShaderCode = readFile(vertShaderPath);
+		auto fragShaderCode = readFile(fragShaderPath);
+
+		VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+		VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+		VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		vertShaderStageInfo.module = vertShaderModule;
+		vertShaderStageInfo.pName = "main";
+
+		VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		fragShaderStageInfo.module = fragShaderModule;
+		fragShaderStageInfo.pName = "main";
+
+		VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+		VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+		auto bindingDescription = Vertex::getBindingDescription();
+		auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+		VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+		VkViewport viewport = {};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = (float)swapChainExtent.width;
+		viewport.height = (float)swapChainExtent.height;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		VkRect2D scissor = {};
+		scissor.offset = { 0, 0 };
+		scissor.extent = swapChainExtent;
+
+		VkPipelineViewportStateCreateInfo viewportState = {};
+		viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportState.viewportCount = 1;
+		viewportState.pViewports = &viewport;
+		viewportState.scissorCount = 1;
+		viewportState.pScissors = &scissor;
+
+		VkPipelineRasterizationStateCreateInfo rasterizer = {};
+		rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterizer.depthClampEnable = VK_FALSE;
+		rasterizer.rasterizerDiscardEnable = VK_FALSE;
+		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizer.lineWidth = 1.0f;
+		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterizer.depthBiasEnable = VK_FALSE;
+
+		VkPipelineMultisampleStateCreateInfo multisampling = {};
+		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampling.sampleShadingEnable = VK_FALSE;
+		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencil.depthTestEnable = VK_TRUE;
+		depthStencil.depthWriteEnable = VK_TRUE;
+		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencil.depthBoundsTestEnable = VK_FALSE;
+		depthStencil.stencilTestEnable = VK_FALSE;
+
+		VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		colorBlendAttachment.blendEnable = VK_FALSE;
+
+		VkPipelineColorBlendStateCreateInfo colorBlending = {};
+		colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		colorBlending.logicOpEnable = VK_FALSE;
+		colorBlending.logicOp = VK_LOGIC_OP_COPY;
+		colorBlending.attachmentCount = 1;
+		colorBlending.pAttachments = &colorBlendAttachment;
+		colorBlending.blendConstants[0] = 0.0f;
+		colorBlending.blendConstants[1] = 0.0f;
+		colorBlending.blendConstants[2] = 0.0f;
+		colorBlending.blendConstants[3] = 0.0f;
+
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipelineLayoutInfo.setLayoutCount = 1;
+		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+
+		VkPushConstantRange pushConstantRange = {};
+		pushConstantRange.offset = 0;
+		pushConstantRange.size = sizeof(int) * 1;
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+		pipelineLayoutInfo.pushConstantRangeCount = 1;
+
+		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create pipeline layout!");
+		}
+
+		VkGraphicsPipelineCreateInfo pipelineInfo = {};
+		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipelineInfo.stageCount = 2;
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pInputAssemblyState = &inputAssembly;
+		pipelineInfo.pViewportState = &viewportState;
+		pipelineInfo.pRasterizationState = &rasterizer;
+		pipelineInfo.pMultisampleState = &multisampling;
+		pipelineInfo.pDepthStencilState = &depthStencil;
+		pipelineInfo.pColorBlendState = &colorBlending;
+		pipelineInfo.layout = pipelineLayout;
+		pipelineInfo.renderPass = renderPass;
+		pipelineInfo.subpass = 0;
+		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+		VkPipeline graphicsPipeline;
+		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create graphics pipeline!");
+		}
+
+		vkDestroyShaderModule(device, fragShaderModule, nullptr);
+		vkDestroyShaderModule(device, vertShaderModule, nullptr);
+
+		return graphicsPipeline;
+	}
+
+	VkDescriptorSetLayout Graphics::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+		layoutInfo.pBindings = bindings.data();
+
+		VkDescriptorSetLayout descriptorSetLayout;
+		if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create descriptor set layout!");
+		}
+
+		return descriptorSetLayout;
+	}
+
+	std::vector<VkDescriptorSet> Graphics::createDescriptorSets(VkDescriptorPool descriptorPool,
+		VkDescriptorSetLayout descriptorSetLayout, uint32_t count) {
+		std::vector<VkDescriptorSetLayout> layouts(count, descriptorSetLayout);
+		VkDescriptorSetAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = count;
+		allocInfo.pSetLayouts = layouts.data();
+
+		std::vector<VkDescriptorSet> descriptorSets(count);
+		if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate descriptor sets!");
+		}
+
+		return descriptorSets;
+	}
+
+
+void Graphics::updateDescriptorSet(const PipelineBundle& bundle) {
+	for (int i = 0; i < bundle.descriptorSets.size(); i++) {
+
+		std::vector<VkWriteDescriptorSet> descriptorWrites;
+		std::vector<VkDescriptorBufferInfo> bufferInfos;
+		std::vector<VkDescriptorImageInfo> imageInfos;
+
+		descriptorWrites.reserve(bundle.descriptorInfos.size());
+		bufferInfos.reserve(bundle.descriptorInfos.size());
+		imageInfos.reserve(bundle.descriptorInfos.size());
+
+		for (size_t j = 0; j < bundle.descriptorInfos.size(); ++j) {
+			const auto& info = bundle.descriptorInfos[j];
+
+			VkWriteDescriptorSet descriptorWrite = {};
+			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite.dstSet = bundle.descriptorSets[i];
+			descriptorWrite.dstBinding = static_cast<uint32_t>(j);
+			descriptorWrite.dstArrayElement = 0;
+			descriptorWrite.descriptorType = info.type;
+			descriptorWrite.descriptorCount = 1;
+
+			switch (info.type) {
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+				if (info.buffers.empty() || j >= info.buffers.size()) {
+					throw std::runtime_error("Invalid uniform buffer for descriptor " + std::to_string(j));
+				}
+				bufferInfos.push_back({
+					info.buffers[i],
+					info.bufferOffset,
+					info.bufferRange
+					});
+				descriptorWrite.pBufferInfo = &bufferInfos.back();
+				break;
+			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				if (info.buffer == nullptr) {
+					throw std::runtime_error("Storage buffer is null for descriptor " + std::to_string(j));
+				}
+				bufferInfos.push_back({
+					(info.buffer),
+					info.bufferOffset,
+					info.bufferRange
+					});
+				descriptorWrite.pBufferInfo = &bufferInfos.back();
+				break;
+			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				if (info.imageView == nullptr || info.sampler == nullptr) {
+					throw std::runtime_error("Image view or sampler is null for descriptor " + std::to_string(j));
+				}
+				imageInfos.push_back({
+					(info.sampler),
+					(info.imageView),
+					info.imageLayout
+					});
+				descriptorWrite.pImageInfo = &imageInfos.back();
+				break;
+			default:
+				throw std::runtime_error("Unsupported descriptor type");
+			}
+
+			descriptorWrites.push_back(descriptorWrite);
+		}
+
+		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+	}
+}
+
+VkDescriptorPool Graphics::createDescriptorPool(const std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t maxSets) {
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = maxSets;
+
+    VkDescriptorPool descriptorPool;
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+
+    return descriptorPool;
+}
+
+PipelineBundle Graphics::createCurrentPipelineBundle(VkExtent2D swapChainExtent, VkRenderPass renderPass,
+	uint32_t swapChainImageCount) {
+	std::vector<VkDescriptorSetLayoutBinding> bindings = {
+		{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+		{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+		{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}
+	};
+
+	// Create DescriptorInfo structs
+	std::vector<DescriptorInfo> descriptorInfos;
+	for (const auto& binding : bindings) {
+		DescriptorInfo info(binding.descriptorType);
+		switch (binding.descriptorType) {
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			info.bufferRange = sizeof(UniformBufferObject);
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			info.bufferRange = sizeof(glm::mat4) * MAX_RENDER_INSTANCES;
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			break;
+		}
+		descriptorInfos.push_back(info);
+	}
+
+	VkDescriptorSetLayout descriptorSetLayout = createDescriptorSetLayout(bindings);
+
+	// Create descriptor pool
+	std::vector<VkDescriptorPoolSize> poolSizes;
+	for (const auto& binding : bindings) {
+		poolSizes.push_back({ binding.descriptorType, swapChainImageCount });
+	}
+	VkDescriptorPool descriptorPool = createDescriptorPool(poolSizes, swapChainImageCount);
+
+	VkPipelineLayout pipelineLayout;
+	VkPipeline pipeline = createGraphicsPipeline("shaders/vert.spv", "shaders/frag.spv",
+		descriptorSetLayout, swapChainExtent, renderPass, pipelineLayout);
+
+	std::vector<VkDescriptorSet> descriptorSets = createDescriptorSets(descriptorPool, descriptorSetLayout, swapChainImageCount);
+
+	return PipelineBundle(pipeline, pipelineLayout, descriptorSetLayout, std::move(descriptorSets), descriptorPool, std::move(descriptorInfos));
+}
+
+void Graphics::updatePipelineBundleResources(PipelineBundle& bundle,
+	const std::vector<VkBuffer> uniformBuffers,
+	VkBuffer storageBuffer,
+	VkImageView textureImageView,
+	VkSampler textureSampler) {
+	if (bundle.descriptorInfos.size() != 3) {
+		throw std::runtime_error("Unexpected number of descriptors in PipelineBundle");
+	}
+
+	// Update Uniform Buffer info
+	auto& uboInfo = bundle.descriptorInfos[0];
+	if (uboInfo.type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+		throw std::runtime_error("Unexpected descriptor type at index 0");
+	}
+	uboInfo.buffers = uniformBuffers;
+
+	// Update Combined Image Sampler info
+	auto& samplerInfo = bundle.descriptorInfos[1];
+	if (samplerInfo.type != VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+		throw std::runtime_error("Unexpected descriptor type at index 1");
+	}
+	samplerInfo.imageView = textureImageView;
+	samplerInfo.sampler = textureSampler;
+
+	// Update Storage Buffer info
+	auto& ssboInfo = bundle.descriptorInfos[2];
+	if (ssboInfo.type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+		throw std::runtime_error("Unexpected descriptor type at index 2");
+	}
+	ssboInfo.buffer = storageBuffer;
+
+	// Validate that all necessary pointers are set
+	for (const auto& info : bundle.descriptorInfos) {
+		switch (info.type) {
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			if (info.buffers.empty()) {
+				throw std::runtime_error("Uniform buffers not set");
+			}
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			if (info.imageView == nullptr || info.sampler == nullptr) {
+				throw std::runtime_error("Image view or sampler not set");
+			}
+			break;
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			if (info.buffer == nullptr) {
+				throw std::runtime_error("Storage buffer not set");
+			}
+			break;
+		}
+	}
+}
