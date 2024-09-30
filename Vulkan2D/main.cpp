@@ -62,7 +62,7 @@ int main() {
 			gfx.setCameraPos(camera.position);
 			gfx.setCameraPos(gfx.getCameraPos()+camera.velocity);
 			if (input.keys.f && !lastF) {
-				gfx.addRenderInstance(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 1);
+				gfx.addRenderInstance(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z, 3);
 				test.dimensions = glm::vec3(1, 1, 1);
 				test.velocity = glm::vec3(0, 0, 0);
 				test.position = glm::vec3(gfx.getCameraPos().x, gfx.getCameraPos().y, gfx.getCameraPos().z);

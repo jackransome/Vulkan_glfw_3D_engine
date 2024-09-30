@@ -3,8 +3,19 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+#define STB_RECT_PACK_IMPLEMENTATION
+#include <stb_rect_pack.h>
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+
+#define NOMINMAX
+#include <windows.h>
+
+#include <unordered_set>
 
 	void Graphics::init() {
 		initWindow();
@@ -37,7 +48,7 @@
 		createRenderPass(); // creates a render pass and a sub pass
 
 		pipelineBundles.push_back(createCurrentPipelineBundle(swapChainExtent, renderPass, swapChainImages.size()));
-
+		createTextureAtlasArray({});
 		//createDescriptorSetLayout();
 		//createGraphicsPipeline();
 		createCommandPool();
@@ -45,8 +56,10 @@
 		createFramebuffers();
 		createTextureImage();
 		createTextureImageView();
-		createTextureSampler();
+		readImageInfoFromFile("textures/image_paths.txt");
 		loadResources();
+		createTextureSampler();
+		
 		loadObjects();
 		createVertexBuffer();
 		createIndexBuffer();
@@ -56,7 +69,7 @@
 		//createDescriptorSets();
 
 		updatePipelineBundleResources(pipelineBundles[0], uniformBuffers, storageBuffer, textureImageView, textureSampler);
-		updateDescriptorSet(pipelineBundles[0]);
+		updateDescriptorSet(pipelineBundles[0], 0);
 		
 		createCommandBuffers();
 		createSyncObjects();
@@ -283,6 +296,8 @@
 		vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
 		vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
 	}
+
+	//get
 
 	void Graphics::createSwapChain() {
 		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
@@ -535,9 +550,9 @@
 		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
 		VkPushConstantRange pushConstantRange = {};
-		pushConstantRange.offset = 0;
-		pushConstantRange.size = sizeof(int) * 1;
-		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		pushConstantRange.offset = 0;  // Still starting from offset 0
+		pushConstantRange.size = sizeof(int) * 5;  // Update size to hold 3 integers
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // Assuming still for vertex stage
 
 		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 		pipelineLayoutInfo.pushConstantRangeCount = 1;
@@ -645,12 +660,14 @@
 	}
 
 	void Graphics::createTextureImage() {
-		int mainTextureIndex = loadTexture(TEXTURE_PATH);
+		int mainTextureIndex = loadTexture("textures/atlas.png");
 
 		// Set class members to maintain original functionality
 		textureImage = textures[mainTextureIndex].textureImage;
 		textureImageMemory = textures[mainTextureIndex].textureImageMemory;
-		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(textures[mainTextureIndex].width, textures[mainTextureIndex].height)))) + 1;
+		mipLevels = textures[mainTextureIndex].mipLevels;
+		textureWidth = textures[mainTextureIndex].width;
+		textureHeight = textures[mainTextureIndex].height;
 	}
 
 	uint32_t Graphics::loadTexture(const std::string& texturePath) {
@@ -658,7 +675,6 @@
 		stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
 		uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
 		}
@@ -688,6 +704,8 @@
 
 		Texture newTexture = { textureImage, textureImageMemory, texturePath,  createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels), texWidth, texHeight, mipLevels };
 		textures.push_back(newTexture);
+
+		std::cout << "created texture " << texturePath << " with miplevels = " << mipLevels << std::endl;
 
 		return static_cast<uint32_t>(textures.size() - 1);
 	}
@@ -956,6 +974,26 @@
 		endSingleTimeCommands(commandBuffer);
 	}
 
+	glm::vec2 Graphics::getAtlasOffset(std::string textureName) {
+		for (int i = 0; i < atlasOffsets.size(); i++) {
+			if (textureName == atlasOffsets[i].name) {
+				return atlasOffsets[i].coordinates;
+			}
+		}
+		std::cout << "texture " << textureName << " not found in atlas" << std::endl;
+		return glm::vec2(0, 0);
+	}
+
+	glm::vec2 Graphics::getAtlasSize(std::string textureName) {
+		for (int i = 0; i < atlasOffsets.size(); i++) {
+			if (textureName == atlasOffsets[i].name) {
+				return atlasOffsets[i].dimensions;
+			}
+		}
+		std::cout << "texture " << textureName << " not found in atlas" << std::endl;
+		return glm::vec2(0, 0);
+	}
+
 	void Graphics::loadModel(std::string path, glm::vec4 defaultColor, float scale) {
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -974,16 +1012,17 @@
 		VkImageView modelTextureView = VK_NULL_HANDLE;
 		VkImageView normalMapView = VK_NULL_HANDLE;
 
-		uint32_t textureIndex = loadTexture(TEXTURE_PATH);
-		modelTextureView = textures[textureIndex].textureImageView;
+		std::string textureName;
 
 		// Load textures if available
 		if (!materials.empty()) {
 			const auto& material = materials[0];
 			if (!material.diffuse_texname.empty()) {
-				std::string texturePath = directory + material.diffuse_texname;
-				uint32_t textureIndex = loadTexture(texturePath);
-				modelTextureView = textures[textureIndex].textureImageView;
+				textureName = material.diffuse_texname;
+				//std::string texturePath = directory + material.diffuse_texname;
+				//std::cout << "loading " << texturePath << std::endl;
+				//uint32_t textureIndex = loadTexture(texturePath);
+				//modelTextureView = textures[textureIndex].textureImageView;
 			}
 			if (!material.bump_texname.empty()) {
 				std::string normalMapPath = directory + material.bump_texname;
@@ -991,6 +1030,7 @@
 				normalMapView = textures[normalMapIndex].textureImageView;
 			}
 		}
+
 
 		for (const auto& shape : shapes) {
 			for (const auto& index : shape.mesh.indices) {
@@ -1021,11 +1061,11 @@
 				int materialId = shape.mesh.material_ids[index.vertex_index / 3];
 				if (materialId >= 0 && materialId < materials.size()) {
 					const auto& material = materials[materialId];
-					vertex.diffuse = glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
-					vertex.specular = glm::vec3(material.specular[0], material.specular[1], material.specular[2]);
-					vertex.ambient = glm::vec3(material.ambient[0], material.ambient[1], material.ambient[2]);
-					vertex.shininess = material.shininess;
-					vertex.opacity = material.dissolve;
+					vertex.diffuse = glm::vec3(0.5);// glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
+					vertex.specular = glm::vec3(0.1); //glm::vec3(material.specular[0], material.specular[1], material.specular[2]);
+					vertex.ambient = glm::vec3(0.1); //glm::vec3(material.ambient[0], material.ambient[1], material.ambient[2]);
+					vertex.shininess = 1.0; //material.shininess;
+					vertex.opacity = 1.0; //material.dissolve;
 				}
 				else {
 					// Use default color if no material is specified
@@ -1050,8 +1090,8 @@
 		Model newModel;
 		newModel.offset = indexOffset;
 		newModel.size = indexCount;
-		newModel.textureImageView = modelTextureView;
-		newModel.normalMapImageView = normalMapView;
+		newModel.textureOffset = getAtlasOffset(textureName);
+		newModel.textureSize = getAtlasSize(textureName);
 		models.push_back(newModel);
 	}
 
@@ -1125,7 +1165,7 @@
 	}
 
 	void Graphics::updateStorageBuffer() {
-
+		//if (totalRenderInstances == MAX_RENDER_INSTANCES) return;
 		//std::cout << "totalRenderInstances = " << totalRenderInstances << std::endl;
 		int t = 0;
 		std::vector<glm::mat4> storageBufferData;
@@ -1383,21 +1423,39 @@
 			// lets not support no texture for now
 			// we need a new pipeline for only 2D stuff.
 			int startingIndex = 0;
+			updateDescriptorSet(pipelineBundles[0], i);
+			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
+
 			for (int j = 0; j < renderInstances.size(); j++) {
 				if (renderInstanceIndexes[j] > 0) {
-					updatePipelineBundleResources(pipelineBundles[0], uniformBuffers, storageBuffer, renderInstances[j][0].model->textureImageView, textureSampler);
-					vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
-					vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&startingIndex);  //HERE123
+					//updatePipelineBundleResources(pipelineBundles[0], uniformBuffers, storageBuffer, renderInstances[j][0].model->textureImageView, textureSampler);
+					
+					PushConstants pushConstants = {
+						startingIndex,
+						static_cast<float>(renderInstances[j][0].model->textureOffset.x) / 4096.0f,
+						static_cast<float>(renderInstances[j][0].model->textureOffset.y) / 4096.0f,
+						static_cast<float>(renderInstances[j][0].model->textureSize.x) / 4096.0f,
+						static_cast<float>(renderInstances[j][0].model->textureSize.y) / 4096.0f
+					};
+					vkCmdPushConstants(
+						commandBuffers[i],
+						pipelineBundles[0].pipelineLayout,
+						VK_SHADER_STAGE_VERTEX_BIT,
+						0,
+						sizeof(PushConstants),
+						&pushConstants
+					);
+					//vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&startingIndex);  //HERE123
 					vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(models[j].size), renderInstanceIndexes[j], static_cast<uint32_t>(models[j].offset), 0, 0);
 				}
 				startingIndex += renderInstanceIndexes[j];
 			}
 			/*vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
 			for (int j = 0; j < renderInstances.size(); j++) {
-				//push constant for object index
+				//C constant for object index
 				vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&j);  //HERE123
 				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(renderInstances[j].model->size), 1, static_cast<uint32_t>(renderInstances[j].model->offset), 0, 0);
-			}*/
+			}*/ //: 0.378167, 0, 0.077, 0.238183
 			
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1446,7 +1504,7 @@
 
 		UniformBufferObject ubo = {};
 		//ubo.model = glm::rotate(glm::mat4(), 0.0f, glm::vec3(0, 0, 1));
-		ubo.view = glm::lookAt(cameraPosition- direction, cameraPosition , up);
+		ubo.view = glm::lookAt(cameraPosition, cameraPosition + direction, up);
 		ubo.proj = glm::perspective(glm::radians(FOV), swapChainExtent.width / (float)swapChainExtent.height, 0.001f, 1000.0f);
 		ubo.proj[1][1] *= -1;
 		ubo.cameraPos = cameraPosition;
@@ -1468,15 +1526,10 @@
 	}
 
 	void Graphics::drawFrame() {
-
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
-		addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		if (totalRenderInstances < 100) {
+			//addRenderInstance((rand() % 30), (rand() % 30), (rand() % 30), 3);
+		}
+		
 
 		vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 		vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -1760,10 +1813,10 @@
 
 	void Graphics::loadResources()
 	{
-		loadModel("models/testUV.obj", glm::vec4(0.9, 0.1, 0.1, 1), 1);
+		loadModel("models/texcube.obj", glm::vec4(0.9, 0.1, 0.1, 1), 1);
 		loadModel("models/test3.obj", glm::vec4(0.2, 0.4, 0.9, 1), 1);
 		loadModel("models/xyzOrigin.obj", glm::vec4(0.1, 0.9, 0.1, 1), 1);
-		loadModel("models/small_sphere.obj", glm::vec4(0.7, 0.9, 0.1, 1), 1);
+		loadModel("models/bep.obj", glm::vec4(0.7, 0.9, 0.1, 1), 1);
 		renderInstances.resize(models.size());
 		renderInstanceIndexes.resize(models.size());
 		std::fill(renderInstanceIndexes.begin(), renderInstanceIndexes.end(), 0);
@@ -1954,7 +2007,7 @@
 
 		VkPushConstantRange pushConstantRange = {};
 		pushConstantRange.offset = 0;
-		pushConstantRange.size = sizeof(int) * 1;
+		pushConstantRange.size = sizeof(PushConstants);
 		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
@@ -2023,8 +2076,7 @@
 	}
 
 
-void Graphics::updateDescriptorSet(const PipelineBundle& bundle) {
-	for (int i = 0; i < bundle.descriptorSets.size(); i++) {
+void Graphics::updateDescriptorSet(const PipelineBundle& bundle, int index) {
 
 		std::vector<VkWriteDescriptorSet> descriptorWrites;
 		std::vector<VkDescriptorBufferInfo> bufferInfos;
@@ -2039,7 +2091,7 @@ void Graphics::updateDescriptorSet(const PipelineBundle& bundle) {
 
 			VkWriteDescriptorSet descriptorWrite = {};
 			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrite.dstSet = bundle.descriptorSets[i];
+			descriptorWrite.dstSet = bundle.descriptorSets[index];
 			descriptorWrite.dstBinding = static_cast<uint32_t>(j);
 			descriptorWrite.dstArrayElement = 0;
 			descriptorWrite.descriptorType = info.type;
@@ -2051,7 +2103,7 @@ void Graphics::updateDescriptorSet(const PipelineBundle& bundle) {
 					throw std::runtime_error("Invalid uniform buffer for descriptor " + std::to_string(j));
 				}
 				bufferInfos.push_back({
-					info.buffers[i],
+					info.buffers[index],
 					info.bufferOffset,
 					info.bufferRange
 					});
@@ -2087,7 +2139,6 @@ void Graphics::updateDescriptorSet(const PipelineBundle& bundle) {
 		}
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-	}
 }
 
 VkDescriptorPool Graphics::createDescriptorPool(const std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t maxSets) {
@@ -2149,6 +2200,8 @@ PipelineBundle Graphics::createCurrentPipelineBundle(VkExtent2D swapChainExtent,
 	return PipelineBundle(pipeline, pipelineLayout, descriptorSetLayout, std::move(descriptorSets), descriptorPool, std::move(descriptorInfos));
 }
 
+
+
 void Graphics::updatePipelineBundleResources(PipelineBundle& bundle,
 	const std::vector<VkBuffer> uniformBuffers,
 	VkBuffer storageBuffer,
@@ -2200,4 +2253,354 @@ void Graphics::updatePipelineBundleResources(PipelineBundle& bundle,
 			break;
 		}
 	}
+}
+
+void copyImageSection(unsigned char* src, int srcWidth, int srcHeight, int srcChannels,
+	unsigned char* dest, int destWidth, int destHeight, int destChannels,
+	int srcX, int srcY, int destX, int destY, int copyWidth, int copyHeight) {
+	copyWidth = std::min(copyWidth, srcWidth - srcX);
+	copyWidth = std::min(copyWidth, destWidth - destX);
+	copyHeight = std::min(copyHeight, srcHeight - srcY);
+	copyHeight = std::min(copyHeight, destHeight - destY);
+
+	int minChannels = std::min(srcChannels, destChannels);
+
+	for (int y = 0; y < copyHeight; ++y) {
+		for (int x = 0; x < copyWidth; ++x) {
+			for (int c = 0; c < minChannels; ++c) {
+				int srcIndex = ((srcY + y) * srcWidth + (srcX + x)) * srcChannels + c;
+				int destIndex = ((destY + y) * destWidth + (destX + x)) * destChannels + c;
+				dest[destIndex] = src[srcIndex];
+			}
+		}
+	}
+}
+
+struct Image {
+	unsigned char* data;
+	int width;
+	int height;
+	int channels;
+	std::string path;
+	int x;
+	int y;
+};
+
+struct Skyline {
+	int x, y, width;
+};
+
+
+
+std::string getFilenameFromPath(const std::string& path) {
+	size_t lastSlash = path.find_last_of("\\/");
+	if (lastSlash != std::string::npos) {
+		return path.substr(lastSlash + 1);
+	}
+	return path;
+}
+
+void Graphics::readImageInfoFromFile(const std::string& filePath) {
+	std::ifstream file(filePath);
+
+	if (!file.is_open()) {
+		std::cerr << "Unable to open file: " << filePath << std::endl;
+		return;
+	}
+
+	std::string line;
+	while (std::getline(file, line)) {
+		std::istringstream iss(line);
+		std::string fullPath, coordinatesStr;
+
+		if (std::getline(iss, fullPath, '|') && std::getline(iss, coordinatesStr)) {
+			// Trim whitespace from fullPath and coordinatesStr
+			fullPath.erase(0, fullPath.find_first_not_of(" \t"));
+			fullPath.erase(fullPath.find_last_not_of(" \t") + 1);
+			coordinatesStr.erase(0, coordinatesStr.find_first_not_of(" \t"));
+			coordinatesStr.erase(coordinatesStr.find_last_not_of(" \t") + 1);
+
+			// Extract filename from path
+			std::string filename = getFilenameFromPath(fullPath);
+
+			// Parse coordinates
+			std::istringstream coordStream(coordinatesStr);
+			std::string xStr, yStr, wStr, hStr;
+			int x = 0, y = 0, w = 0, h = 0;
+
+			if (std::getline(coordStream, xStr, ',') && std::getline(coordStream, yStr, ',') &&
+				std::getline(coordStream, wStr, ',') && std::getline(coordStream, hStr)) {
+				// Convert the strings to integers
+				x = std::stoi(xStr);
+				y = std::stoi(yStr);
+				w = std::stoi(wStr);
+				h = std::stoi(hStr);
+			}
+
+			// Store the parsed data in atlasOffsets (assuming atlasOffsets stores name, coordinates, and size)
+			atlasOffsets.push_back({ filename, glm::vec2(x, y), glm::vec2(w, h) });
+		}
+	}
+	file.close();
+
+	// Optional debug printing
+	return;
+	for (const auto& info : atlasOffsets) {
+		std::cout << "Image: " << info.name
+			<< ", Coordinates: (" << info.coordinates.x
+			<< ", " << info.coordinates.y << ")"
+			<< ", Size: (" << info.dimensions.x
+			<< ", " << info.dimensions.y << ")" << std::endl;
+	}
+}
+
+
+bool comparePaths(const std::vector<std::string>& paths, const std::string& filePath) {
+	// Read file contents into a set
+	std::unordered_set<std::string> fileContents;
+	std::ifstream file(filePath);
+	if (!file.is_open()) {
+		std::cerr << "Unable to open file: " << filePath << std::endl;
+		return false;
+	}
+
+	std::string line;
+	while (std::getline(file, line)) {
+		// Extract the path part before the '|' character
+		std::istringstream iss(line);
+		std::string path;
+		if (std::getline(iss, path, '|')) {
+			// Trim leading and trailing whitespace
+			path.erase(0, path.find_first_not_of(" \t"));
+			path.erase(path.find_last_not_of(" \t") + 1);
+
+			if (!path.empty()) {
+				fileContents.insert(path);
+			}
+		}
+	}
+	file.close();
+
+	// Check if sizes match
+	if (paths.size() != fileContents.size()) {
+		return false;
+	}
+
+	// Check if all paths in the vector are in the file
+	for (const auto& path : paths) {
+		if (fileContents.find(path) == fileContents.end()) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+std::vector<std::string> getFileNamesInDirectory(const std::string& directory) {
+	std::vector<std::string> fileNames;
+	std::string search_path = directory + "\\*.png";
+	WIN32_FIND_DATA fd;
+	HANDLE hFind = FindFirstFile(search_path.c_str(), &fd);
+	if (hFind != INVALID_HANDLE_VALUE) {
+		do {
+			if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+				std::string fileName = fd.cFileName;
+				if (fileName != "atlas.png") {
+					fileNames.push_back(directory + "\\" + fd.cFileName);
+				}
+			}
+		} while (FindNextFile(hFind, &fd));
+		FindClose(hFind);
+	}
+	return fileNames;
+}
+
+void Graphics::createTextureAtlasArray(std::vector<std::string> texturePaths) {
+	VkPhysicalDeviceProperties properties;
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+	uint32_t maxTextureSize = properties.limits.maxImageDimension2D;
+	uint32_t maxTextureArrayLayers = properties.limits.maxImageArrayLayers;
+
+	VkPhysicalDeviceMaintenance3Properties maintenance3Props{};
+	maintenance3Props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+
+	VkPhysicalDeviceProperties2 deviceProps2{};
+	deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+	deviceProps2.pNext = &maintenance3Props;
+
+	vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProps2);
+
+	VkDeviceSize maxResourceSize = maintenance3Props.maxMemoryAllocationSize;
+
+	uint32_t maxDimensionMemConstraint = static_cast<uint32_t>(std::sqrt(maxResourceSize / 4));
+
+	uint32_t maxDim = std::min(maxDimensionMemConstraint, maxTextureSize);
+
+	std::cout << "maxTextureSize = " << maxTextureSize << std::endl;
+	std::cout << "maxTextureArrayLayers = " << maxTextureArrayLayers << std::endl;
+	std::cout << "maxResourceSize = " << maxResourceSize << std::endl;
+	std::cout << "maxDimension = " << maxDimensionMemConstraint << std::endl;
+	std::cout << "maxDim = " << maxDim << std::endl;
+
+	const std::string textures_path = "textures";
+	const char* output_path = "textures/atlas.png";
+	std::vector<Image> images;
+
+	std::vector<std::string> filePaths = getFileNamesInDirectory(textures_path);
+
+	if (comparePaths(filePaths, "textures/image_paths.txt")) {
+		return;
+	}
+
+	for (const auto& path : filePaths) {
+		Image img;
+		img.path = path;
+		img.data = stbi_load(img.path.c_str(), &img.width, &img.height, &img.channels, 0);
+		if (img.data == nullptr) {
+			std::cerr << "Error loading image: " << img.path << ": " << stbi_failure_reason() << std::endl;
+			continue;
+		}
+		std::cout << "Loaded image: " << img.path << " " << img.width << "x" << img.height << " with " << img.channels << " channels" << std::endl;
+		images.push_back(img);
+	}
+
+	if (images.empty()) {
+		std::cerr << "No images loaded successfully" << std::endl;
+	}
+
+	std::cout << "Total images loaded: " << images.size() << std::endl;
+
+	if (images.empty()) {
+		std::cerr << "No images loaded successfully" << std::endl;
+	}
+
+	// Sort images by height (descending)
+	std::sort(images.begin(), images.end(), [](const Image& a, const Image& b) {
+		return a.height > b.height;
+		});
+
+	int atlasWidth = 4096;
+	int atlasHeight = 0;
+	std::vector<Skyline> skyline = { {0, 0, atlasWidth} };
+	std::vector<std::pair<int, int>> positions(images.size());
+
+	for (size_t i = 0; i < images.size(); ++i) {
+		const Image& img = images[i];
+		int bestY = INT_MAX;
+		int bestIndex = -1;
+
+		// Find best position
+		for (size_t j = 0; j < skyline.size(); ++j) {
+			if (skyline[j].width >= img.width) {
+				int y = skyline[j].y;
+				if (y + img.height < bestY) {
+					bestY = y + img.height;
+					bestIndex = j;
+				}
+			}
+		}
+
+		if (bestIndex == -1) {
+			// If no suitable position found, add to the top
+			bestIndex = skyline.size();
+			skyline.push_back({ 0, atlasHeight, atlasWidth });
+			bestY = atlasHeight + img.height;
+		}
+
+		// Place image
+		positions[i] = { skyline[bestIndex].x, skyline[bestIndex].y };
+		atlasHeight = std::max(atlasHeight, bestY);
+
+		// Update skyline
+		Skyline newSegment = { skyline[bestIndex].x, bestY, img.width };
+		int rightRemainder = skyline[bestIndex].width - img.width;
+
+		if (rightRemainder > 0) {
+			skyline.insert(skyline.begin() + bestIndex + 1, { skyline[bestIndex].x + img.width, skyline[bestIndex].y, rightRemainder });
+		}
+
+		skyline[bestIndex] = newSegment;
+
+		// Merge adjacent segments with the same height
+		for (size_t j = 0; j < skyline.size() - 1; ++j) {
+			if (skyline[j].y == skyline[j + 1].y) {
+				skyline[j].width += skyline[j + 1].width;
+				skyline.erase(skyline.begin() + j + 1);
+				--j;
+			}
+		}
+	}
+
+	// Create atlas
+	int atlasChannels = 4;  // RGBA CHANGE TO 3 FOR NORMAL MAPS
+	std::vector<unsigned char> atlas(4096 * 4096 * atlasChannels, 0);  // Initialize to transparent
+
+	// Copy images to atlas
+	for (size_t i = 0; i < images.size(); ++i) {
+		Image& img = images[i];
+		std::cout << "placing " << images[i].path << " which has " << img.channels << " channels\n";
+		copyImageSection(img.data, img.width, img.height, img.channels,
+			atlas.data(), atlasWidth, atlasHeight, atlasChannels,
+			0, 0, positions[i].first, positions[i].second, img.width, img.height);
+		std::cout << "Placed image " << i << " at (" << positions[i].first << ", " << positions[i].second << ")" << std::endl;
+		img.x = positions[i].first;
+		img.y = positions[i].second;
+	}
+
+	// Save atlas
+	// TODO: MAKE THIS HANDLE MORE TEXTURES BY USING MULTIPLE TEXTURE LAYERS
+	int result = stbi_write_png(output_path, atlasWidth, 4096, atlasChannels, atlas.data(), atlasWidth * atlasChannels);
+	//int result = stbi_write_png(output_path, images[0].width, images[0].height, images[0].channels, images[0].data, images[0].width* images[0].channels);
+	std::cout << " w: " << images[0].width << " h: " << images[0].height << " h: " << images[0].channels << std::endl;
+	std::cout << " w: " << atlasWidth << " h: " << atlasHeight << " h: " << atlasChannels << std::endl;
+	if (result == 0) {
+		std::cerr << "Error writing image" << std::endl;
+	}
+	else {
+		std::cout << "Atlas saved successfully" << std::endl;
+	}
+	const char* path_file = "textures/image_paths.txt";
+	std::ofstream outFile(path_file);
+	if (outFile.is_open()) {
+		for (const auto& img : images) {
+			outFile << img.path << " | " << img.x << " , " << img.y << " , " << img.width << " , " << img.height << std::endl;
+		}
+		outFile.close();
+		std::cout << "Image paths written to " << path_file << std::endl;
+	}
+	else {
+		std::cerr << "Unable to open file for writing image paths" << std::endl;
+	}
+	// Cleanup
+	for (auto& img : images) {
+		stbi_image_free(img.data);
+	}
+}
+
+void Graphics::addSpriteInstance(int textureId, glm::vec3 position, glm::vec2 size,
+	glm::vec2 texOffset, glm::vec2 texSize,
+	float rotation, float opacity) {
+	if (textureId >= textures.size()) {
+		std::cout << "Texture index " << textureId << " out of range" << std::endl;
+		return;
+	}
+
+	std::vector<Sprite>& textureSprites = spriteInstances[textureId];
+	textureSprites.emplace_back();
+	Sprite& sprite = textureSprites[spriteInstanceIndexes[textureId]];
+	spriteInstanceIndexes[textureId]++;
+
+	sprite.texture = &textures[textureId];
+	sprite.data = { textureId, position, size, glm::vec4(texOffset, texSize), rotation, opacity };
+
+	if (textureSprites.size() >= textureSprites.capacity()) {
+		textureSprites.reserve(textureSprites.size() + 5);
+	}
+}
+
+void Graphics::resetSpriteInstances() {
+	for (auto& instances : spriteInstances) {
+		instances.clear();
+	}
+	std::fill(spriteInstanceIndexes.begin(), spriteInstanceIndexes.end(), 0);
 }

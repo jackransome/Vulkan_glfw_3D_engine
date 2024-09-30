@@ -1,0 +1,7 @@
+textures\img3.PNG | 0 , 0 , 951 , 1079
+textures\img1.PNG | 951 , 0 , 968 , 562
+textures\normal.png | 1919 , 0 , 350 , 350
+textures\5.png | 2269 , 0 , 226 , 261
+textures\4.PNG | 2495 , 0 , 462 , 257
+textures\steam dp.png | 2957 , 0 , 184 , 184
+textures\img2.png | 3141 , 0 , 216 , 98

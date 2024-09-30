@@ -84,8 +84,8 @@ struct Texture {
 struct Model {
 	uint32_t offset;
 	uint32_t size;
-	VkImageView textureImageView;
-	VkImageView normalMapImageView;
+	glm::vec2 textureOffset;
+	glm::vec2 textureSize;
 };
 
 //Object struct
@@ -94,12 +94,43 @@ struct RenderInstance {
 	glm::mat4 transformData;
 };
 
+struct ImageInfo {
+	std::string name;
+	glm::vec2 coordinates;
+	glm::vec2 dimensions;
+};
+
+//sprite stuff is for 2D
+struct SpriteData {
+	int textureId;
+	glm::vec3 position;
+	glm::vec2 size;
+	glm::vec4 texOffsetSize; // xy = texOffset, zw = texSize
+	float rotation;
+	float opacity;
+};
+
+struct Sprite {
+	SpriteData data;
+	Texture* texture;
+};
+
 struct UniformBufferObject {
 	//glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
 	glm::vec3 cameraPos;
 };
+
+struct PushConstants {
+	int index;              // Offset 0
+	float textureOffsetX;   // Offset 4
+	float textureOffsetY;   // Offset 8
+	float textureWidth;     // Offset 12
+	float textureHeight;    // Offset 16
+};
+static_assert(sizeof(PushConstants) == 20, "PushConstants struct size must be 20 bytes");
+
 
 struct Vertex {
 	glm::vec3 pos;
@@ -243,11 +274,17 @@ private:
 
 	std::vector<Texture> textures;
 
+	int textureWidth, textureHeight;
+
 	std::vector<Model> models;
 
 	std::vector<std::vector<RenderInstance>> renderInstances;
 
 	std::vector<size_t> renderInstanceIndexes;
+
+	std::vector<std::vector<Sprite>> spriteInstances;
+
+	std::vector<size_t> spriteInstanceIndexes;
 
 	size_t totalRenderInstances = 0;
 
@@ -334,6 +371,14 @@ private:
 
 	bool framebufferResized = false;
 
+	std::vector<ImageInfo> atlasOffsets;
+
+	glm::vec2 getAtlasOffset(std::string textureName);
+
+	glm::vec2 getAtlasSize(std::string textureName);
+
+	void readImageInfoFromFile(const std::string& filePath);
+
 	void loadResources();
 
 	//void loadModels();
@@ -343,6 +388,10 @@ private:
 	void setUpCamera();
 
 	void resetRenderInstances();
+
+	void addSpriteInstance(int textureId, glm::vec3 position, glm::vec2 size, glm::vec2 texOffset, glm::vec2 texSize, float rotation, float opacity);
+
+	void resetSpriteInstances();
 
 	VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
 		auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
@@ -491,12 +540,16 @@ private:
 	
 	std::vector<VkDescriptorSet> createDescriptorSets(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, uint32_t count);
 
-	void updateDescriptorSet(const PipelineBundle& bundle);
+	void updateDescriptorSet(const PipelineBundle& bundle, int index);
 
 	PipelineBundle createCurrentPipelineBundle(VkExtent2D swapChainExtent, VkRenderPass renderPass, uint32_t swapChainImageCount);
+
+	void updatePipelineBundle(PipelineBundle pipelineBundle, VkExtent2D swapChainExtent);
 
 	VkDescriptorPool createDescriptorPool(const std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t maxSets);
 
 	void updatePipelineBundleResources(PipelineBundle& bundle, const std::vector<VkBuffer> uniformBuffers, VkBuffer storageBuffer, VkImageView textureImageView, VkSampler textureSampler);
+
+	void createTextureAtlasArray(std::vector<std::string> texturePaths);
 
 };

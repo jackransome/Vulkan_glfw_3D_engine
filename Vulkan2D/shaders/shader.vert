@@ -31,7 +31,11 @@ layout(location = 7) out float fragShininess;
 layout(location = 8) out float fragOpacity;
 
 layout(push_constant) uniform transformData {
-  int index;
+    layout(offset = 0) int index;               // Offset 0
+    layout(offset = 4) float textureOffsetX;    // Offset 4
+    layout(offset = 8) float textureOffsetY;    // Offset 8
+    layout(offset = 12) float textureWidth;     // Offset 12
+    layout(offset = 16) float textureHeight;    // Offset 16
 } object;
 
 out gl_PerVertex {
@@ -44,7 +48,7 @@ void main() {
     FragPos = vec3(objects.transform[object.index+gl_InstanceIndex] * vec4(inPosition, 1.0));
     Normal = mat3(transpose(inverse(objects.transform[object.index+gl_InstanceIndex]))) * inNormal;
     cameraPos = ubo.cameraPos;
-    fragTexCoord = inTexCoord;
+    fragTexCoord = inTexCoord*vec2(object.textureWidth, object.textureHeight) + vec2(object.textureOffsetX, object.textureOffsetY);
     fragSpecular = inSpecular;
     fragAmbient = inAmbient;
     fragShininess = inShininess;

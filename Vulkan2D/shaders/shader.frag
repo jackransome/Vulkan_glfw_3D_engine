@@ -16,7 +16,7 @@ layout(location = 8) in float fragOpacity;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 lightColor = vec3(5, 5, 5);
+    vec3 lightColor = vec3(10, 10, 10);
     vec3 lightPos = cameraPos; // Assuming light is at camera position
 
     vec4 texColor = texture(texSampler, fragTexCoord);
