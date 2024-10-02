@@ -373,6 +373,20 @@ private:
 
 	std::vector<ImageInfo> atlasOffsets;
 
+	VkSampleCountFlagBits msaaSamples;
+
+	VkImage colorImage;
+	VkDeviceMemory colorImageMemory;
+	VkImageView colorImageView;
+
+	void printSampleCount();
+
+	void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
+	void createColorResources();
+
+	void getMaxUsableSampleCount(VkPhysicalDevice physicalDevice);
+
 	glm::vec2 getAtlasOffset(std::string textureName);
 
 	glm::vec2 getAtlasSize(std::string textureName);
@@ -418,8 +432,6 @@ private:
 
 	void initVulkan();
 
-	void mainLoop();
-
 	void cleanupSwapChain();
 
 	void recreateSwapChain();
@@ -439,10 +451,6 @@ private:
 	void createImageViews();
 
 	void createRenderPass();
-
-	void createDescriptorSetLayout();
-
-	void createGraphicsPipeline();
 
 	void createFramebuffers();
 
@@ -466,8 +474,6 @@ private:
 
 	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
 
-	void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
 	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
 
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -485,10 +491,6 @@ private:
 	void updateStorageBuffer();
 
 	void createUniformBuffers();
-
-	void createDescriptorPool();
-
-	void createDescriptorSets();
 
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
@@ -543,8 +545,6 @@ private:
 	void updateDescriptorSet(const PipelineBundle& bundle, int index);
 
 	PipelineBundle createCurrentPipelineBundle(VkExtent2D swapChainExtent, VkRenderPass renderPass, uint32_t swapChainImageCount);
-
-	void updatePipelineBundle(PipelineBundle pipelineBundle, VkExtent2D swapChainExtent);
 
 	VkDescriptorPool createDescriptorPool(const std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t maxSets);
 
