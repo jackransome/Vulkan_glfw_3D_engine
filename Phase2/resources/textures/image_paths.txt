@@ -1,0 +1,8 @@
+resources/textures\img3.PNG | 0 , 0 , 951 , 1079
+resources/textures\img1.PNG | 951 , 0 , 968 , 562
+resources/textures\normal.png | 1919 , 0 , 350 , 350
+resources/textures\5.png | 2269 , 0 , 226 , 261
+resources/textures\NormalMap.png | 2495 , 0 , 226 , 261
+resources/textures\4.PNG | 2721 , 0 , 462 , 257
+resources/textures\steam dp.png | 3183 , 0 , 184 , 184
+resources/textures\img2.png | 3367 , 0 , 216 , 98

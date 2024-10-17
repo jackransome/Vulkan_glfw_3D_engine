@@ -1037,7 +1037,7 @@
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
 
 		copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
+		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
 	}
@@ -1238,9 +1238,7 @@
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
 
 			// TODO:
 			//
@@ -1277,12 +1275,6 @@
 				}
 				startingIndex += renderInstanceIndexes[j];
 			}
-			/*vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBundles[0].pipelineLayout, 0, 1, &(pipelineBundles[0].descriptorSets)[i], 0, nullptr); //HERE123
-			for (int j = 0; j < renderInstances.size(); j++) {
-				//C constant for object index
-				vkCmdPushConstants(commandBuffers[i], pipelineBundles[0].pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), (void*)&j);  //HERE123
-				vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(renderInstances[j].model->size), 1, static_cast<uint32_t>(renderInstances[j].model->offset), 0, 0);
-			}*/ //: 0.378167, 0, 0.077, 0.238183
 			
 			vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1375,7 +1367,7 @@
 		//renderInstances[0][0].transformData = glm::translate(glm::mat4(1.0f), cameraPosition);
 
 		updateUniformBuffer(imageIndex);
-		updateStorageBuffer();
+		updateStorageBuffer(); //lsb
 		createCommandBuffers();
 
 		VkSubmitInfo submitInfo = {};
@@ -1988,7 +1980,7 @@ PipelineBundle Graphics::createCurrentPipelineBundle(VkExtent2D swapChainExtent,
 	std::vector<VkDescriptorSetLayoutBinding> bindings = {
 		{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
 		{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-		{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}
+		{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr} //lsb
 	};
 
 	// Create DescriptorInfo structs
@@ -2000,7 +1992,7 @@ PipelineBundle Graphics::createCurrentPipelineBundle(VkExtent2D swapChainExtent,
 			info.bufferRange = sizeof(UniformBufferObject);
 			break;
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-			info.bufferRange = sizeof(glm::mat4) * MAX_RENDER_INSTANCES;
+			info.bufferRange = sizeof(glm::mat4) * MAX_RENDER_INSTANCES; //lsb
 			break;
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 			info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
